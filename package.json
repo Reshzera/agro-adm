@@ -1,0 +1,18 @@
+{
+  "name": "agro-adm",
+  "private": true,
+  "description": "Monorepo simples: backend (NestJS) + frontend (React SPA). Sem workspaces — cada projeto tem seu package.json e seu lockfile.",
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"yarn --cwd backend dev\" \"yarn --cwd frontend dev\"",
+    "build": "yarn --cwd backend build && yarn --cwd frontend build",
+    "test": "yarn --cwd backend test",
+    "eval": "yarn --cwd backend eval",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres",
+    "install:all": "yarn --cwd backend install && yarn --cwd frontend install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
