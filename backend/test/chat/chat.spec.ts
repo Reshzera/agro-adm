@@ -44,6 +44,7 @@ describe('chat', () => {
     expect(messages).toHaveLength(2);
     expect(messages[0]).toEqual(message);
     expect(messages[1]?.role).toBe('assistant');
+    expect(messages[1]?.id).toMatch(/^msg-/);
     expect(messages[1]?.parts).toEqual([
       { type: 'step-start' },
       { type: 'text', text: 'Olá, João. Como posso ajudar?', state: 'done' },

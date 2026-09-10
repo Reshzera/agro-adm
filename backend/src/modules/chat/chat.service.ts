@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   convertToModelMessages,
+  createIdGenerator,
   streamText,
   validateUIMessages,
   type UIMessage,
@@ -73,11 +74,6 @@ export class ChatService {
     const farm = await this.repository.farmAgentContext(farmId);
     if (!farm) throw new ChatNotFoundError();
 
-    await this.repository.replaceMessages(
-      chat.id,
-      messages.map(toStoredMessage),
-    );
-
     const result = streamText({
       model: this.ai.model,
       system: systemPrompt(farm, this.ai.now()),
@@ -87,6 +83,7 @@ export class ChatService {
 
     return result.toUIMessageStream({
       originalMessages: messages,
+      generateMessageId: createIdGenerator({ prefix: 'msg', size: 16 }),
       onFinish: async ({ messages: completeMessages }) => {
         await this.repository.replaceMessages(
           chat.id,
