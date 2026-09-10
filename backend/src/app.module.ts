@@ -6,6 +6,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DatabaseModule } from './modules/database/database.module';
 import { FarmModule } from './modules/farm/farm.module';
+import { FinancialModule } from './modules/financial/financial.module';
 import { ProfileModule } from './modules/profile/profile.module';
 
 @Module({
@@ -17,6 +18,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     DatabaseModule,
     AuthModule,
     FarmModule,
+    FinancialModule,
     ProfileModule,
     AiModule,
   ],
