@@ -7,9 +7,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-agro}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agro}
       POSTGRES_DB: ${POSTGRES_DB:-agro_adm}
-    # A 5432 do host costuma já estar ocupada por outro Postgres local; por isso
-    # a porta de fora é configurável e o padrão é 5433. Dentro do container é
-    # sempre 5432 — mexer só em POSTGRES_PORT no .env.
     ports:
       - '${POSTGRES_PORT:-5433}:5432'
     volumes:
