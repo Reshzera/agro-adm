@@ -6,9 +6,17 @@ const config: Config = {
   testEnvironment: 'node',
   moduleFileExtensions: ['js', 'json', 'ts'],
   testRegex: '\\.spec\\.ts$',
-  transform: { '^.+\\.(t|j)s$': 'ts-jest' },
-  setupFiles: ['<rootDir>/test/harness/env.ts'],
-  globalSetup: '<rootDir>/test/harness/global-setup.ts',
+  extensionsToTreatAsEsm: ['.ts'],
+  transform: {
+    '^.+\\.ts$': [
+      'ts-jest',
+      {
+        useESM: true,
+        tsconfig: { module: 'ES2022', moduleResolution: 'bundler' },
+      },
+    ],
+  },
+  setupFiles: ['<rootDir>/test/test-setups/env.ts'],
   maxWorkers: 1,
   testTimeout: 30000,
   watchman: false,

@@ -6,18 +6,21 @@ import type TestAgent from 'supertest/lib/agent';
 import { AppModule } from '../../src/app.module';
 import { APPLICATION_OPTIONS, configureApp } from '../../src/bootstrap';
 import { AiService } from '../../src/modules/ai/ai.service';
+import { AuthRepository } from '../../src/modules/auth/auth.repository';
 import { PrismaService } from '../../src/modules/database/prisma.service';
-import {
-  SEED_CLOCK,
-  resetDatabase,
-  seedSantaClara,
-} from '../../src/seed/santa-clara';
+import { FarmRepository } from '../../src/modules/farm/farm.repository';
+import { ProfileRepository } from '../../src/modules/profile/profile.repository';
+import { SEED_CLOCK } from '../../src/seed/santa-clara';
 import { credentialsFor } from './auth';
+import {
+  createMockRepositories,
+  type MockRepositories,
+} from './mock-repositories';
 import { createScriptedModel, type ScriptedModel } from './scripted-model';
 
 export type TestApp = {
   app: INestApplication;
-  prisma: PrismaService;
+  repositories: MockRepositories;
   model: ScriptedModel;
   now: Date;
   request(): TestAgent;
@@ -28,6 +31,7 @@ export type TestApp = {
 
 export async function createTestApp(): Promise<TestApp> {
   const model = createScriptedModel();
+  const repositories = createMockRepositories();
   const ai: Pick<AiService, 'model' | 'now'> = {
     model: model.model,
     now: () => new Date(SEED_CLOCK),
@@ -36,6 +40,14 @@ export async function createTestApp(): Promise<TestApp> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(AiService)
     .useValue(ai)
+    .overrideProvider(PrismaService)
+    .useValue({})
+    .overrideProvider(AuthRepository)
+    .useValue(repositories.auth)
+    .overrideProvider(FarmRepository)
+    .useValue(repositories.farm)
+    .overrideProvider(ProfileRepository)
+    .useValue(repositories.profile)
     .compile();
 
   const app =
@@ -45,11 +57,9 @@ export async function createTestApp(): Promise<TestApp> {
   configureApp(app);
   await app.init();
 
-  const prisma = app.get(PrismaService);
-
   const testApp: TestApp = {
     app,
-    prisma,
+    repositories,
     model,
     now: ai.now(),
     request(): TestAgent {
@@ -58,10 +68,10 @@ export async function createTestApp(): Promise<TestApp> {
     as(userId: string): TestAgent {
       return request.agent(app.getHttpServer()).set(credentialsFor(userId));
     },
-    async reseed(): Promise<void> {
+    reseed(): Promise<void> {
       model.reset();
-      await resetDatabase(prisma);
-      await seedSantaClara(prisma);
+      repositories.reset();
+      return Promise.resolve();
     },
     async close(): Promise<void> {
       await app.close();
