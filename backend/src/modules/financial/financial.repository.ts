@@ -20,6 +20,14 @@ function periodWhere(from?: Date, to?: Date): PeriodWhere | undefined {
 export class FinancialRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  listAreas(farmId: string) {
+    return this.prisma.farmArea.findMany({
+      where: { farmId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
   async areasBelongToFarm(farmId: string, areaIds: string[]): Promise<boolean> {
     if (!areaIds.length) return true;
     const count = await this.prisma.farmArea.count({
@@ -42,7 +50,9 @@ export class FinancialRepository {
         ...data,
         allocations: { create: data.allocations },
       },
-      include: { allocations: true },
+      include: {
+        allocations: { include: { area: { select: { name: true } } } },
+      },
     });
   }
 
@@ -71,7 +81,9 @@ export class FinancialRepository {
       return tx.expense.update({
         where: { id },
         data,
-        include: { allocations: true },
+        include: {
+          allocations: { include: { area: { select: { name: true } } } },
+        },
       });
     });
   }
@@ -100,7 +112,9 @@ export class FinancialRepository {
           ? { date: periodWhere(filters.from, filters.to) }
           : {}),
       },
-      include: { allocations: true },
+      include: {
+        allocations: { include: { area: { select: { name: true } } } },
+      },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     });
   }

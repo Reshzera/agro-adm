@@ -20,7 +20,7 @@ export function SignupPage() {
       <div className={styles.fieldNote} aria-hidden="true"><span>◒</span><p>Um caderno vivo para<br />cada decisão do campo.</p></div>
     </div>
     <div className={styles.cardWrap}>
-      {signUp.isSuccess ? <SignupSuccess /> : <form className={styles.card} onSubmit={handleSubmit((values) => signUp.mutate(values))} noValidate>
+      {signUp.isSuccess ? <SignupSuccess /> : <form className={styles.card} onSubmit={handleSubmit((values) => signUp.mutate({ ...values, callbackURL: `${window.location.origin}/verificar-email?verified=true` }))} noValidate>
         <div><p className={styles.cardEyebrow}>Comece por aqui</p><h2>Criar uma conta</h2><p className={styles.hint}>Leva menos de um minuto.</p></div>
         <div className={styles.fields}>
           <label htmlFor="signup-name">Seu nome</label>
@@ -44,6 +44,7 @@ export function SignupPage() {
 function SignupSuccess() {
   return <div className={styles.card} role="status">
     <div><p className={styles.cardEyebrow}>Conta criada</p><h2>Confira seu e-mail.</h2><p className={styles.hint}>Enviamos uma mensagem de confirmação. Depois de verificar o endereço, você poderá entrar no caderno.</p></div>
+    <Link to="/verificar-email">Acompanhar verificação →</Link>
   </div>
 }
 

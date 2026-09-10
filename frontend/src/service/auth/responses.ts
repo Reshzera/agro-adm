@@ -13,4 +13,5 @@ export type SignUpWithEmailPayload = {
   name: string
   email: string
   password: string
+  callbackURL?: string
 }

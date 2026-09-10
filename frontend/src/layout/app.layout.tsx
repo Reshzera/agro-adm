@@ -13,7 +13,12 @@ export function AppLayout() {
       </Link>
       {inApp && <nav aria-label="Navegação principal">
         <Link data-active={location.pathname === '/app'} to="/app">Conversas</Link>
-        <Link data-active={location.pathname === '/app/configuracoes'} to="/app/configuracoes">Fazenda</Link>
+        <Link data-active={location.pathname === '/app/financeiro'} to="/app/financeiro">Financeiro</Link>
+        <Link data-active={location.pathname === '/app/configuracoes'} to="/app/configuracoes">Configurações</Link>
+      </nav>}
+      {!inApp && location.pathname === '/' && <nav aria-label="Navegação pública">
+        <Link to="/login">Entrar</Link>
+        <Link data-active="true" to="/signup">Criar conta</Link>
       </nav>}
     </header>
     <Outlet />

@@ -25,6 +25,10 @@ import {
 export class FinancialService {
   constructor(private readonly repository: FinancialRepository) {}
 
+  listAreas(farmId: string) {
+    return this.repository.listAreas(farmId);
+  }
+
   async createExpense(farmId: string, input: CreateExpenseDto) {
     const amount = positiveCents(input.amount);
     const allocations = await this.allocationsForFarm(
@@ -141,7 +145,7 @@ export class FinancialService {
         ? []
         : await this.listExpenses(farmId, filters);
     const revenues =
-      filters.type === 'EXPENSE'
+      filters.type === 'EXPENSE' || filters.category
         ? []
         : await this.listRevenues(farmId, filters);
 

@@ -43,6 +43,8 @@ describe('FinancialService', () => {
     repository.createExpense.mockImplementation((input) =>
       Promise.resolve(input),
     );
+    repository.listExpenses.mockResolvedValue([]);
+    repository.listRevenues.mockResolvedValue([]);
   });
 
   const expense = {
@@ -111,5 +113,16 @@ describe('FinancialService', () => {
         { category: ExpenseCategory.FUEL, amount: '100.00' },
       ],
     });
+  });
+
+  it('does not mix uncategorized revenues into a category filter', async () => {
+    await service.listFinancialEntries('farm-1', {
+      category: ExpenseCategory.FUEL,
+    });
+
+    expect(repository.listExpenses).toHaveBeenCalledWith('farm-1', {
+      category: ExpenseCategory.FUEL,
+    });
+    expect(repository.listRevenues).not.toHaveBeenCalled();
   });
 });
