@@ -5,6 +5,7 @@ import { ChatPage } from './pages/chat/chat.page'
 import { LoginPage } from './pages/login/login.page'
 import { SignupPage } from './pages/signup/signup.page'
 import { NotFoundPage } from './pages/not-found/not-found.page'
+import { FarmSettingsPage } from './pages/settings/farm-settings.page'
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +18,11 @@ export const router = createBrowserRouter([
         path: 'app',
         loader: requireSession,
         element: <ChatPage />,
+      },
+      {
+        path: 'app/configuracoes',
+        loader: requireSession,
+        element: <FarmSettingsPage />,
       },
       { path: '*', element: <NotFoundPage /> },
     ],

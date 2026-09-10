@@ -1,5 +1,4 @@
-export type Farm = {
-  id: string
+export type UpdateFarmPayload = {
   name: string | null
   totalAreaHa: string | null
   primaryActivity: string | null
@@ -7,5 +6,4 @@ export type Farm = {
   mainCrops: string | null
   approximateAnimalCount: number | null
   agentContext: string | null
-  onboardingCompleted: boolean
 }

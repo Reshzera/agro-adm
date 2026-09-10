@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export const updateFarmRegistry = {
-  description: 'Atualiza dados estruturados da fazenda atual.',
+  description:
+    'Atualiza dados estruturados da fazenda atual. O sistema conclui o onboarding automaticamente quando nome, área total, localização e atividade principal estiverem preenchidos.',
   inputSchema: z
     .object({
       name: z.string().trim().min(1).max(200).optional(),
@@ -11,7 +12,8 @@ export const updateFarmRegistry = {
         .optional(),
       primaryActivity: z.string().trim().min(1).max(200).optional(),
       location: z.string().trim().min(1).max(300).optional(),
-      onboardingCompleted: z.boolean().optional(),
+      mainCrops: z.string().trim().min(1).max(500).optional(),
+      approximateAnimalCount: z.number().int().nonnegative().optional(),
     })
     .strict()
     .refine(

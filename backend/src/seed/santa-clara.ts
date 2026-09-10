@@ -85,6 +85,8 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
       totalAreaHa: '840.00',
       primaryActivity: 'Pecuária de corte',
       location: 'Camapuã, MS',
+      mainCrops: 'Milho safrinha',
+      approximateAnimalCount: 920,
       onboardingCompleted: true,
       agentContext: [
         '# Fazenda Santa Clara',

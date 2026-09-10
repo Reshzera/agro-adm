@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useChat } from '@ai-sdk/react'
+import { useQuery } from '@tanstack/react-query'
 import {
   DefaultChatTransport,
   isToolUIPart,
@@ -10,6 +11,7 @@ import {
 import { ToolRenderer } from '../../generative-ui/tool-renderer'
 import type { ToolPart } from '../../generative-ui/types'
 import { chatEndpoints } from '../../../service/chat'
+import { farmEndpoints } from '../../../service/farm'
 import styles from './conversation.module.scss'
 
 type ConversationProps = {
@@ -20,6 +22,10 @@ type ConversationProps = {
 
 export function Conversation({ chatId, initialMessages, onActivity }: ConversationProps) {
   const [input, setInput] = useState('')
+  const farm = useQuery({
+    queryKey: ['farm'],
+    queryFn: async ({ signal }) => (await farmEndpoints.current(signal)).data,
+  })
   const transport = useMemo(
     () => new DefaultChatTransport({
       api: chatEndpoints.streamUrl(),
@@ -52,8 +58,13 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
     <section className={styles.messages} aria-live="polite">
       {messages.length === 0 && <div className={styles.welcome}>
         <p className={styles.eyebrow}>agro-adm</p>
-        <h1>Bom dia. Vamos cuidar da fazenda?</h1>
-        <p>Me pergunte sobre o que está acontecendo por aí.</p>
+        {farm.data && !farm.data.onboardingCompleted ? <>
+          <h1>Vamos conhecer<br />sua fazenda?</h1>
+          <p>Para começar, como ela se chama?</p>
+        </> : <>
+          <h1>Bom dia. Vamos cuidar da fazenda?</h1>
+          <p>Me pergunte sobre o que está acontecendo por aí.</p>
+        </>}
       </div>}
       {messages.map((message) => <article className={`${styles.message} ${message.role === 'user' ? styles.messageUser : ''}`} key={message.id}>
         <span>{message.role === 'user' ? 'Você' : 'Agro-adm'}</span>
@@ -73,7 +84,7 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
     </section>
     <form className={styles.composer} onSubmit={submit}>
       <label className={styles.srOnly} htmlFor="question">Sua pergunta</label>
-      <textarea id="question" rows={1} value={input} onChange={(event) => setInput(event.target.value)} placeholder="O que você quer saber?" disabled={status !== 'ready'} />
+      <textarea id="question" rows={1} value={input} onChange={(event) => setInput(event.target.value)} placeholder={farm.data && !farm.data.onboardingCompleted ? 'Conte um pouco sobre sua fazenda…' : 'O que você quer saber?'} disabled={status !== 'ready'} />
       <button type="submit" disabled={!input.trim() || status !== 'ready'}>
         {status === 'streaming' || status === 'submitted' ? 'Pensando…' : 'Enviar'}
       </button>

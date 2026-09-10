@@ -54,7 +54,7 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  ownedFarms Farm[] @relation("FarmOwner")
+  ownedFarms Farm[]    @relation("FarmOwner")
   sessions   Session[]
   accounts   Account[]
 
@@ -114,11 +114,13 @@ model Farm {
   ownerUserId String
   owner       User   @relation("FarmOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
 
-  name            String?
-  totalAreaHa     Decimal? @db.Decimal(12, 2)
-  primaryActivity String?
-  location        String?
-  agentContext    String?
+  name                   String?
+  totalAreaHa            Decimal? @db.Decimal(12, 2)
+  primaryActivity        String?
+  location               String?
+  mainCrops              String?
+  approximateAnimalCount Int?
+  agentContext           String?
 
   onboardingCompleted Boolean @default(false)
 

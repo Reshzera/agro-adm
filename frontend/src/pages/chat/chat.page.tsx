@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { Chat } from '../../components/chat/chat/chat'
@@ -9,6 +9,7 @@ import styles from './chat.page.module.scss'
 export function ChatPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
+  const requestedFirstChat = useRef(false)
   const activeChatId = searchParams.get('chat')
 
   const chats = useQuery({
@@ -42,6 +43,12 @@ export function ChatPage() {
     if (!chats.data || chats.data.some((chat) => chat.id === activeChatId)) return
     setSearchParams(chats.data.length ? { chat: chats.data[0].id } : {}, { replace: true })
   }, [activeChatId, chats.data, setSearchParams])
+
+  useEffect(() => {
+    if (chats.data?.length !== 0 || activeChatId || requestedFirstChat.current) return
+    requestedFirstChat.current = true
+    createChat.mutate()
+  }, [activeChatId, chats.data, createChat])
 
   function archive(id: string) {
     const chat = chats.data?.find((item) => item.id === id)

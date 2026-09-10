@@ -25,6 +25,9 @@ export type FarmAgentContext = {
   name: string | null;
   totalAreaHa: { toString(): string } | null;
   primaryActivity: string | null;
+  location: string | null;
+  mainCrops: string | null;
+  approximateAnimalCount: number | null;
   agentContext: string | null;
   onboardingCompleted: boolean;
   areas: Array<{ id: string; name: string; type: string }>;
@@ -116,6 +119,9 @@ export class ChatRepository {
         name: true,
         totalAreaHa: true,
         primaryActivity: true,
+        location: true,
+        mainCrops: true,
+        approximateAnimalCount: true,
         agentContext: true,
         onboardingCompleted: true,
         areas: { select: { id: true, name: true, type: true } },

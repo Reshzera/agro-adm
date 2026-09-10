@@ -15,6 +15,12 @@ type Farm = {
   id: string;
   ownerUserId: string;
   name: string | null;
+  totalAreaHa: string | null;
+  primaryActivity: string | null;
+  location: string | null;
+  mainCrops: string | null;
+  approximateAnimalCount: number | null;
+  agentContext: string | null;
   onboardingCompleted: boolean;
 };
 
@@ -42,6 +48,12 @@ export function createMockRepositories() {
         id,
         ownerUserId,
         name: null,
+        totalAreaHa: null,
+        primaryActivity: null,
+        location: null,
+        mainCrops: null,
+        approximateAnimalCount: null,
+        agentContext: null,
         onboardingCompleted: false,
       });
     }),
@@ -58,10 +70,16 @@ export function createMockRepositories() {
       const item = farms.get(id);
       if (!item || item.ownerUserId !== ownerUserId) return null;
       return {
-        id: item.id,
-        name: item.name,
-        onboardingCompleted: item.onboardingCompleted,
+        ...item,
       };
+    }),
+    findForAgent: jest.fn((id: string) => farms.get(id) ?? null),
+    updateForAgent: jest.fn((id: string, input: Partial<Farm>) => {
+      const current = farms.get(id);
+      if (!current) throw new Error('Farm not found.');
+      const updated = { ...current, ...input };
+      farms.set(id, updated);
+      return updated;
     }),
   };
 
@@ -144,9 +162,14 @@ export function createMockRepositories() {
       if (!farm) return null;
       return {
         name: farm.name,
-        totalAreaHa: { toString: () => '840.00' },
-        primaryActivity: 'Pecuária de corte',
-        agentContext: 'João é o gerente.',
+        totalAreaHa: farm.totalAreaHa
+          ? { toString: () => farm.totalAreaHa! }
+          : null,
+        primaryActivity: farm.primaryActivity,
+        location: farm.location,
+        mainCrops: farm.mainCrops,
+        approximateAnimalCount: farm.approximateAnimalCount,
+        agentContext: farm.agentContext,
         onboardingCompleted: farm.onboardingCompleted,
         areas: [
           { id: SEED_IDS.areas.pasto4, name: 'Pasto 4', type: 'PASTURE' },
@@ -177,6 +200,12 @@ export function createMockRepositories() {
           id: SEED_IDS.farms.santaClara,
           ownerUserId: SEED_IDS.users.joao,
           name: 'Fazenda Santa Clara',
+          totalAreaHa: '840.00',
+          primaryActivity: 'Pecuária de corte',
+          location: 'Camapuã, MS',
+          mainCrops: 'Milho safrinha',
+          approximateAnimalCount: 920,
+          agentContext: 'João é o gerente.',
           onboardingCompleted: true,
         },
       ],
@@ -186,6 +215,12 @@ export function createMockRepositories() {
           id: SEED_IDS.farms.boaVista,
           ownerUserId: SEED_IDS.users.marina,
           name: 'Fazenda Boa Vista',
+          totalAreaHa: '320.00',
+          primaryActivity: 'Agricultura',
+          location: 'Dourados, MS',
+          mainCrops: 'Soja',
+          approximateAnimalCount: null,
+          agentContext: null,
           onboardingCompleted: true,
         },
       ],
@@ -234,6 +269,8 @@ export function createMockRepositories() {
     auth.createEmptyFarmForUser.mockClear();
     auth.findFarmIdForUser.mockClear();
     farm.findForOwner.mockClear();
+    farm.findForAgent.mockClear();
+    farm.updateForAgent.mockClear();
     profile.findByUserId.mockClear();
     profile.update.mockClear();
     chat.findForFarm.mockClear();

@@ -46,6 +46,18 @@ function systemPrompt(farm: FarmAgentContext, now: Date): string {
     .map((area) => `- ${area.id}: ${area.name} (${area.type})`)
     .join('\n');
 
+  const onboarding = farm.onboardingCompleted
+    ? [
+        'O onboarding já está concluído. Não faça perguntas de cadastro da fazenda espontaneamente; responda ao pedido atual do produtor.',
+      ]
+    : [
+        'O onboarding ainda não foi concluído. Conduza-o como uma conversa acolhedora, fazendo somente uma pergunta por resposta.',
+        'Nunca invente respostas. Priorize, nesta ordem, os campos essenciais que ainda estiverem ausentes: nome, área total aproximada, localização e atividade principal (pecuária, agricultura ou mista).',
+        'Assim que o produtor informar um dado estruturado, grave-o com updateFarm. Culturas principais e quantidade aproximada de animais também são estruturadas, mas pergunte apenas quando forem aplicáveis à atividade informada.',
+        'Informações qualitativas extras, como raça do rebanho, pessoas, rotinas e preferências, pertencem ao agentContext e devem ser gravadas com updateFarmContext, preservando o contexto anterior.',
+        'O sistema marca o onboarding como concluído quando os quatro campos essenciais estão preenchidos. Quando a tool devolver onboardingCompleted=true, pare o roteiro de cadastro e não faça mais perguntas de onboarding.',
+      ];
+
   return [
     'Você é o assistente da agro-adm para gestão de uma propriedade rural.',
     'Seja claro, objetivo e não invente dados. Para números atualizados, use ferramentas quando elas estiverem disponíveis.',
@@ -54,9 +66,13 @@ function systemPrompt(farm: FarmAgentContext, now: Date): string {
     `Fazenda: ${farm.name ?? 'sem nome'}.`,
     `Área total: ${farm.totalAreaHa?.toString() ?? 'não informada'} ha.`,
     `Atividade principal: ${farm.primaryActivity ?? 'não informada'}.`,
+    `Localização: ${farm.location ?? 'não informada'}.`,
+    `Culturas principais: ${farm.mainCrops ?? 'não informadas'}.`,
+    `Quantidade aproximada de animais: ${farm.approximateAnimalCount ?? 'não informada'}.`,
     `Onboarding concluído: ${farm.onboardingCompleted ? 'sim' : 'não'}.`,
     `Contexto do produtor:\n${farm.agentContext ?? 'não informado'}`,
     `Áreas cadastradas (id, nome e tipo):\n${areas || 'nenhuma'}`,
+    ...onboarding,
   ].join('\n\n');
 }
 
