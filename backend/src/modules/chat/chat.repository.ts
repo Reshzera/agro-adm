@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { ChatSource, type Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 
 export type StoredUiMessage = {
@@ -10,7 +10,15 @@ export type StoredUiMessage = {
 
 export type ChatWithMessages = {
   id: string;
+  title: string | null;
   messages: StoredUiMessage[];
+};
+
+export type ChatSummary = {
+  id: string;
+  title: string | null;
+  source: ChatSource;
+  updatedAt: Date;
 };
 
 export type FarmAgentContext = {
@@ -26,14 +34,23 @@ export type FarmAgentContext = {
 export class ChatRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  listForFarm(farmId: string): Promise<ChatSummary[]> {
+    return this.prisma.chat.findMany({
+      where: { farmId, archivedAt: null },
+      select: { id: true, title: true, source: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
   findForFarm(
     chatId: string,
     farmId: string,
   ): Promise<ChatWithMessages | null> {
     return this.prisma.chat.findFirst({
-      where: { id: chatId, farmId },
+      where: { id: chatId, farmId, archivedAt: null },
       select: {
         id: true,
+        title: true,
         messages: {
           select: { id: true, role: true, parts: true },
           orderBy: { createdAt: 'asc' },
@@ -44,9 +61,36 @@ export class ChatRepository {
 
   create(chatId: string, farmId: string): Promise<ChatWithMessages> {
     return this.prisma.chat.create({
-      data: { id: chatId, farmId },
-      select: { id: true, messages: true },
+      data: { id: chatId, farmId, source: ChatSource.WEB },
+      select: { id: true, title: true, messages: true },
     }) as unknown as Promise<ChatWithMessages>;
+  }
+
+  async rename(
+    chatId: string,
+    farmId: string,
+    title: string,
+  ): Promise<boolean> {
+    const result = await this.prisma.chat.updateMany({
+      where: { id: chatId, farmId, archivedAt: null },
+      data: { title },
+    });
+    return result.count === 1;
+  }
+
+  async archive(chatId: string, farmId: string): Promise<boolean> {
+    const result = await this.prisma.chat.updateMany({
+      where: { id: chatId, farmId, archivedAt: null },
+      data: { archivedAt: new Date() },
+    });
+    return result.count === 1;
+  }
+
+  setGeneratedTitle(chatId: string, title: string): Promise<unknown> {
+    return this.prisma.chat.updateMany({
+      where: { id: chatId, title: null, archivedAt: null },
+      data: { title },
+    });
   }
 
   async replaceMessages(
@@ -57,6 +101,10 @@ export class ChatRepository {
       this.prisma.message.deleteMany({ where: { chatId } }),
       this.prisma.message.createMany({
         data: messages.map((message) => ({ ...message, chatId })),
+      }),
+      this.prisma.chat.update({
+        where: { id: chatId },
+        data: { updatedAt: new Date() },
       }),
     ]);
   }

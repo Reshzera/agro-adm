@@ -23,6 +23,7 @@ export type TestApp = {
   app: INestApplication;
   repositories: MockRepositories;
   model: ScriptedModel;
+  titleModel: ScriptedModel;
   now: Date;
   request(): TestAgent;
   as(userId: string): TestAgent;
@@ -32,9 +33,11 @@ export type TestApp = {
 
 export async function createTestApp(): Promise<TestApp> {
   const model = createScriptedModel();
+  const titleModel = createScriptedModel();
   const repositories = createMockRepositories();
-  const ai: Pick<AiService, 'model' | 'now'> = {
+  const ai: Pick<AiService, 'model' | 'titleModel' | 'now'> = {
     model: model.model,
+    titleModel: titleModel.model,
     now: () => new Date(SEED_CLOCK),
   };
 
@@ -64,6 +67,7 @@ export async function createTestApp(): Promise<TestApp> {
     app,
     repositories,
     model,
+    titleModel,
     now: ai.now(),
     request(): TestAgent {
       return request.agent(app.getHttpServer());
@@ -73,6 +77,7 @@ export async function createTestApp(): Promise<TestApp> {
     },
     reseed(): Promise<void> {
       model.reset();
+      titleModel.reset();
       repositories.reset();
       return Promise.resolve();
     },

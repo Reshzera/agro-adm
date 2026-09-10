@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import {
   convertToModelMessages,
   createIdGenerator,
+  generateText,
   streamText,
   validateUIMessages,
   type UIMessage,
 } from 'ai';
+import { randomUUID } from 'node:crypto';
 import { AiService } from '../ai/ai.service';
 import { FinancialService } from '../financial/financial.service';
 import { FarmService } from '../farm/farm.service';
@@ -19,6 +21,25 @@ import { ChatNotFoundError } from './errors/chat-not-found.error';
 import { PostChatDto } from './dto/post-chat.dto';
 
 export type ChatInput = PostChatDto;
+
+function fallbackTitle(messages: UIMessage[]): string {
+  const text = messages
+    .flatMap((message) => message.parts)
+    .find((part) => part.type === 'text')?.text;
+  if (!text) return 'Nova conversa';
+  return text.trim().replace(/\s+/g, ' ').slice(0, 80);
+}
+
+function titleContext(messages: UIMessage[]): string {
+  return messages
+    .flatMap((message) =>
+      message.parts
+        .filter((part) => part.type === 'text')
+        .map((part) => `${message.role}: ${part.text}`),
+    )
+    .join('\n')
+    .slice(0, 1600);
+}
 
 function systemPrompt(farm: FarmAgentContext, now: Date): string {
   const areas = farm.areas
@@ -56,6 +77,24 @@ export class ChatService {
     private readonly farms: FarmService,
   ) {}
 
+  list(farmId: string) {
+    return this.repository.listForFarm(farmId);
+  }
+
+  create(farmId: string) {
+    return this.repository.create(randomUUID(), farmId);
+  }
+
+  async rename(farmId: string, chatId: string, title: string) {
+    const renamed = await this.repository.rename(chatId, farmId, title.trim());
+    if (!renamed) throw new ChatNotFoundError();
+  }
+
+  async archive(farmId: string, chatId: string) {
+    const archived = await this.repository.archive(chatId, farmId);
+    if (!archived) throw new ChatNotFoundError();
+  }
+
   async history(farmId: string, chatId: string): Promise<UIMessage[]> {
     const chat = await this.repository.findForFarm(chatId, farmId);
     if (!chat) throw new ChatNotFoundError();
@@ -91,6 +130,26 @@ export class ChatService {
           chat.id,
           completeMessages.map(toStoredMessage),
         );
+        if (chat.title === null) {
+          let title = fallbackTitle(completeMessages);
+          try {
+            const generated = await generateText({
+              model: this.ai.titleModel,
+              system:
+                'Crie um título curto, específico e sem aspas para esta conversa rural. Responda somente com o título, em no máximo 6 palavras.',
+              prompt: titleContext(completeMessages),
+              maxOutputTokens: 40,
+            });
+            title =
+              generated.text
+                .trim()
+                .replace(/^["']|["']$/g, '')
+                .slice(0, 80) || title;
+          } catch {
+            // A conversa não deve falhar caso o modelo auxiliar esteja indisponível.
+          }
+          await this.repository.setGeneratedTitle(chat.id, title);
+        }
       },
     });
   }

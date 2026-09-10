@@ -16,8 +16,8 @@ export class ChatMessageDto {
   @MaxLength(120)
   id!: string;
 
-  @IsIn(['user'])
-  role!: 'user';
+  @IsIn(['user', 'assistant'])
+  role!: 'user' | 'assistant';
 
   @IsArray()
   @ArrayMinSize(1)

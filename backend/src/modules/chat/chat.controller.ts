@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -17,11 +19,41 @@ import {
 } from '../auth/farm-context.guard';
 import { ChatService } from './chat.service';
 import { PostChatDto } from './dto/post-chat.dto';
+import { RenameChatDto } from './dto/rename-chat.dto';
 
 @UseGuards(FarmContextGuard)
 @Controller('chats')
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
+
+  @Get()
+  list(@Req() request: RequestWithFarmContext) {
+    return this.chat.list(request.farmId!);
+  }
+
+  @Post('new')
+  create(@Req() request: RequestWithFarmContext) {
+    return this.chat.create(request.farmId!);
+  }
+
+  @Patch(':id')
+  @HttpCode(204)
+  async rename(
+    @Param('id') id: string,
+    @Body() body: RenameChatDto,
+    @Req() request: RequestWithFarmContext,
+  ) {
+    await this.chat.rename(request.farmId!, id, body.title);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  async archive(
+    @Param('id') id: string,
+    @Req() request: RequestWithFarmContext,
+  ) {
+    await this.chat.archive(request.farmId!, id);
+  }
 
   @Get(':id')
   history(@Param('id') id: string, @Req() request: RequestWithFarmContext) {

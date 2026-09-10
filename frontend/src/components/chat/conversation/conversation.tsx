@@ -15,9 +15,10 @@ import styles from './conversation.module.scss'
 type ConversationProps = {
   chatId: string
   initialMessages: UIMessage[]
+  onActivity?: () => void
 }
 
-export function Conversation({ chatId, initialMessages }: ConversationProps) {
+export function Conversation({ chatId, initialMessages, onActivity }: ConversationProps) {
   const [input, setInput] = useState('')
   const transport = useMemo(
     () => new DefaultChatTransport({
@@ -33,6 +34,7 @@ export function Conversation({ chatId, initialMessages }: ConversationProps) {
     id: chatId,
     messages: initialMessages,
     transport,
+    onFinish: onActivity,
     sendAutomaticallyWhen: (options) =>
       lastAssistantMessageIsCompleteWithApprovalResponses(options) ||
       lastAssistantMessageIsCompleteWithToolCalls(options),

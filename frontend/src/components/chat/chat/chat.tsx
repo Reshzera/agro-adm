@@ -6,9 +6,10 @@ import styles from "./chat.module.scss";
 type ChatProps = {
   chatId: string;
   loadHistory: boolean;
+  onActivity?: () => void;
 };
 
-export function Chat({ chatId, loadHistory }: ChatProps) {
+export function Chat({ chatId, loadHistory, onActivity }: ChatProps) {
   const history = useQuery({
     queryKey: ["chats", chatId],
     queryFn: async ({ signal }) => {
@@ -26,5 +27,5 @@ export function Chat({ chatId, loadHistory }: ChatProps) {
     return <p className={styles.error}>Não foi possível abrir esta conversa.</p>;
   }
 
-  return <Conversation chatId={chatId} initialMessages={history.data ?? []} />;
+  return <Conversation chatId={chatId} initialMessages={history.data ?? []} onActivity={onActivity} />;
 }
