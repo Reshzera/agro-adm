@@ -8,5 +8,6 @@ import { FarmService } from './farm.service';
   imports: [DatabaseModule],
   controllers: [FarmController],
   providers: [FarmRepository, FarmService],
+  exports: [FarmService],
 })
 export class FarmModule {}

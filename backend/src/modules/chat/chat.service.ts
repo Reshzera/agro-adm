@@ -6,6 +6,9 @@ import {
   type UIMessage,
 } from 'ai';
 import { AiService } from '../ai/ai.service';
+import { FinancialService } from '../financial/financial.service';
+import { FarmService } from '../farm/farm.service';
+import { chatTools } from './tools';
 import {
   ChatRepository,
   type FarmAgentContext,
@@ -24,6 +27,7 @@ function systemPrompt(farm: FarmAgentContext, now: Date): string {
   return [
     'Você é o assistente da agro-adm para gestão de uma propriedade rural.',
     'Seja claro, objetivo e não invente dados. Para números atualizados, use ferramentas quando elas estiverem disponíveis.',
+    'Antes de criar uma despesa ou receita, apresente e obtenha confirmação do entendimento (valor, data, descrição, categoria e rateio quando houver). Só então use a tool de criação.',
     `Data atual: ${now.toISOString().slice(0, 10)}.`,
     `Fazenda: ${farm.name ?? 'sem nome'}.`,
     `Área total: ${farm.totalAreaHa?.toString() ?? 'não informada'} ha.`,
@@ -47,6 +51,8 @@ export class ChatService {
   constructor(
     private readonly repository: ChatRepository,
     private readonly ai: AiService,
+    private readonly financial: FinancialService,
+    private readonly farms: FarmService,
   ) {}
 
   async history(farmId: string, chatId: string): Promise<UIMessage[]> {
@@ -76,6 +82,7 @@ export class ChatService {
       model: this.ai.model,
       system: systemPrompt(farm, this.ai.now()),
       messages: await convertToModelMessages(validatedMessages),
+      tools: chatTools(farmId, this.ai.now(), this.financial, this.farms),
     });
 
     return result.toUIMessageStream({
