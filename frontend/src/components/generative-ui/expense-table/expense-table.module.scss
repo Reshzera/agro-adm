@@ -1,0 +1,66 @@
+.card {
+  position: relative;
+  margin-top: 0.85rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(
+    in srgb,
+    var(--color-surface) 86%,
+    var(--color-surface-raised)
+  );
+  box-shadow: 0 0.8rem 2rem var(--color-shadow);
+}
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 400;
+  }
+  small {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  th {
+    padding: 0.65rem 0.8rem;
+    color: var(--color-text-muted);
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  td {
+    padding: 0.7rem 0.8rem;
+    border-top: 1px solid var(--color-border);
+    vertical-align: top;
+  }
+  th:last-child,
+  td:last-child {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+.empty {
+  margin: 0;
+  padding: 1.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}

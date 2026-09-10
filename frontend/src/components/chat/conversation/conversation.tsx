@@ -1,0 +1,81 @@
+import { useMemo, useState, type FormEvent } from 'react'
+import { useChat } from '@ai-sdk/react'
+import {
+  DefaultChatTransport,
+  isToolUIPart,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  lastAssistantMessageIsCompleteWithToolCalls,
+  type UIMessage,
+} from 'ai'
+import { ToolRenderer } from '../../generative-ui/tool-renderer'
+import type { ToolPart } from '../../generative-ui/types'
+import { chatEndpoints } from '../../../service/chat'
+import styles from './conversation.module.scss'
+
+type ConversationProps = {
+  chatId: string
+  initialMessages: UIMessage[]
+}
+
+export function Conversation({ chatId, initialMessages }: ConversationProps) {
+  const [input, setInput] = useState('')
+  const transport = useMemo(
+    () => new DefaultChatTransport({
+      api: chatEndpoints.streamUrl(),
+      credentials: 'include',
+      prepareSendMessagesRequest: ({ id, messages }) => ({
+        body: chatEndpoints.payload(id, messages[messages.length - 1]),
+      }),
+    }),
+    [],
+  )
+  const { messages, sendMessage, status, error, addToolApprovalResponse, addToolOutput } = useChat({
+    id: chatId,
+    messages: initialMessages,
+    transport,
+    sendAutomaticallyWhen: (options) =>
+      lastAssistantMessageIsCompleteWithApprovalResponses(options) ||
+      lastAssistantMessageIsCompleteWithToolCalls(options),
+  })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const text = input.trim()
+    if (!text || status !== 'ready') return
+    sendMessage({ text })
+    setInput('')
+  }
+
+  return <>
+    <section className={styles.messages} aria-live="polite">
+      {messages.length === 0 && <div className={styles.welcome}>
+        <p className={styles.eyebrow}>agro-adm</p>
+        <h1>Bom dia. Vamos cuidar da fazenda?</h1>
+        <p>Me pergunte sobre o que está acontecendo por aí.</p>
+      </div>}
+      {messages.map((message) => <article className={`${styles.message} ${message.role === 'user' ? styles.messageUser : ''}`} key={message.id}>
+        <span>{message.role === 'user' ? 'Você' : 'Agro-adm'}</span>
+        {message.parts.map((part, index) => {
+          if (part.type === 'text') return <p key={index}>{part.text}</p>
+          if (!isToolUIPart(part)) return null
+          return <ToolRenderer
+            key={part.toolCallId}
+            part={part as unknown as ToolPart}
+            actions={{
+              approve: (id, approved) => addToolApprovalResponse({ id, approved }),
+              submitToolOutput: (toolCallId, output) => addToolOutput({ tool: 'showManualForm', toolCallId, output }),
+            }}
+          />
+        })}
+      </article>)}
+    </section>
+    <form className={styles.composer} onSubmit={submit}>
+      <label className={styles.srOnly} htmlFor="question">Sua pergunta</label>
+      <textarea id="question" rows={1} value={input} onChange={(event) => setInput(event.target.value)} placeholder="O que você quer saber?" disabled={status !== 'ready'} />
+      <button type="submit" disabled={!input.trim() || status !== 'ready'}>
+        {status === 'streaming' || status === 'submitted' ? 'Pensando…' : 'Enviar'}
+      </button>
+    </form>
+    {error && <p className={styles.error}>Não foi possível responder agora. Tente novamente.</p>}
+  </>
+}

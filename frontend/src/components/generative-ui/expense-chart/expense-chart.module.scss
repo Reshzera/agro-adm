@@ -1,0 +1,72 @@
+.card {
+  position: relative;
+  margin-top: 0.85rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(
+    in srgb,
+    var(--color-surface) 86%,
+    var(--color-surface-raised)
+  );
+  box-shadow: 0 0.8rem 2rem var(--color-shadow);
+}
+.cardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem 0.65rem;
+  border-bottom: 1px solid var(--color-border);
+  h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 400;
+  }
+  small {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+}
+.bars {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+.barLabel {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.28rem;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+}
+.barTrack {
+  height: 0.48rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-surface-raised);
+}
+.barFill {
+  height: 100%;
+  min-width: 3px;
+  border-radius: inherit;
+  background: var(--color-highlight);
+  transform-origin: left;
+  animation: grow 0.55s ease-out both;
+}
+.empty {
+  margin: 0;
+  padding: 1.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}

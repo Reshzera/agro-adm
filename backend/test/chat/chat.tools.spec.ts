@@ -3,11 +3,13 @@ import { jest } from '@jest/globals';
 import type { ToolExecutionOptions } from 'ai';
 import { chatTools } from '../../src/modules/chat/tools';
 import { createExpenseRegistry } from '../../src/modules/chat/tools/create-expense/registry';
+import { deleteExpenseRegistry } from '../../src/modules/chat/tools/delete-expense/registry';
 import { createRevenueRegistry } from '../../src/modules/chat/tools/create-revenue/registry';
 import { getExpensesRegistry } from '../../src/modules/chat/tools/get-expenses/registry';
 import { getFarmRegistry } from '../../src/modules/chat/tools/get-farm/registry';
 import { getFinancialSummaryRegistry } from '../../src/modules/chat/tools/get-financial-summary/registry';
 import { getRevenueRegistry } from '../../src/modules/chat/tools/get-revenue/registry';
+import { showManualFormRegistry } from '../../src/modules/chat/tools/show-manual-form/registry';
 import { updateExpenseRegistry } from '../../src/modules/chat/tools/update-expense/registry';
 import { updateFarmRegistry } from '../../src/modules/chat/tools/update-farm/registry';
 import { updateFarmContextRegistry } from '../../src/modules/chat/tools/update-farm-context/registry';
@@ -33,6 +35,7 @@ function toolsForTest() {
     listExpenses: jest.fn(),
     listRevenues: jest.fn(),
     getFinancialSummary: jest.fn(),
+    deleteExpense: jest.fn(),
   };
   const farms = {
     getForAgent: jest.fn(() =>
@@ -45,7 +48,6 @@ function toolsForTest() {
       Promise.resolve(input),
     ),
   };
-
   return {
     tools: chatTools(
       FARM_ID,
@@ -90,11 +92,13 @@ describe('chat financial tools', () => {
       updateFarmContextRegistry.inputSchema,
       createExpenseRegistry.inputSchema,
       createRevenueRegistry.inputSchema,
+      deleteExpenseRegistry.inputSchema,
       updateExpenseRegistry.inputSchema,
       updateRevenueRegistry.inputSchema,
       getExpensesRegistry.inputSchema,
       getRevenueRegistry.inputSchema,
       getFinancialSummaryRegistry.inputSchema,
+      showManualFormRegistry.inputSchema,
     ];
 
     for (const schema of schemas) {
@@ -104,6 +108,22 @@ describe('chat financial tools', () => {
       getFarmRegistry.inputSchema.safeParse({ farmId: 'attempted-override' })
         .success,
     ).toBe(false);
+  });
+
+  it('marks expense deletion as requiring SDK approval before execution', async () => {
+    const { tools, financial } = toolsForTest();
+
+    expect(deleteExpenseRegistry.needsApproval).toBe(true);
+    expect(financial.deleteExpense).not.toHaveBeenCalled();
+
+    await tools.deleteExpense.execute!(
+      { id: 'expense-duplicate' },
+      TOOL_EXECUTION_OPTIONS,
+    );
+    expect(financial.deleteExpense).toHaveBeenCalledWith(
+      FARM_ID,
+      'expense-duplicate',
+    );
   });
 
   it('replaces the qualitative farm context instead of appending to it', async () => {

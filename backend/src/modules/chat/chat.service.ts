@@ -67,7 +67,9 @@ export class ChatService {
     if (!chat) chat = await this.repository.create(input.id, farmId);
 
     const messages = [
-      ...(chat.messages as UIMessage[]),
+      ...(chat.messages as UIMessage[]).filter(
+        (message) => message.id !== input.message.id,
+      ),
       input.message as unknown as UIMessage,
     ];
     const validatedMessages = await validateUIMessages({ messages });
