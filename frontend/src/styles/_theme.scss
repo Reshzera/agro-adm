@@ -1,0 +1,53 @@
+@use 'sass:map';
+
+$farmland: (
+  surface: #f8f4e9,
+  surface-raised: #e9e2cf,
+  text: #27332b,
+  text-muted: #687069,
+  border: #d7d0bd,
+  accent: #3d5b3b,
+  accent-contrast: #fffdf6,
+  highlight: #a46e24,
+  danger: #a13b2b,
+  shadow: rgba(51, 49, 34, .08),
+);
+
+$night-pasture: (
+  surface: #1e2923,
+  surface-raised: #304037,
+  text: #f8f4e9,
+  text-muted: #b8c2b8,
+  border: #4f6054,
+  accent: #a9c88d,
+  accent-contrast: #1e2923,
+  highlight: #e3b56c,
+  danger: #f29a83,
+  shadow: rgba(0, 0, 0, .25),
+);
+
+@mixin apply-theme($tokens) {
+  @each $name, $value in $tokens {
+    --color-#{$name}: #{$value};
+  }
+}
+
+:root {
+  @include apply-theme($farmland);
+
+  --font-body: 'Avenir Next', 'Trebuchet MS', sans-serif;
+  --font-display: Georgia, 'Iowan Old Style', serif;
+  --font-mono: ui-monospace, monospace;
+  --radius-sm: .3rem;
+  --radius-md: .8rem;
+  --radius-lg: 1.2rem;
+  --content-width: 52rem;
+  --page-padding: 1.4rem;
+  --ease-enter: .28s ease-out;
+
+  @media (max-width: 36rem) { --page-padding: 1rem; }
+}
+
+[data-theme='night-pasture'] {
+  @include apply-theme($night-pasture);
+}
