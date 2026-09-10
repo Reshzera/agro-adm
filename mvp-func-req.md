@@ -22,6 +22,7 @@ A aplicação será desenvolvida utilizando:
 - **Backend:** NestJS;
 - **Autenticação:** BetterAuth;
 - **Banco de dados:** PostgreSQL (sem extensões geográficas — PostGIS está fora do MVP);
+- **Mapa:** imagem da propriedade enviada pelo produtor, com polígonos desenhados sobre ela (sem georreferenciamento);
 - **Integração externa:** WhatsApp;
 - **Agente:** LLM com acesso controlado a tools internas.
 
@@ -938,58 +939,87 @@ Quanto estava há um mês?
 
 ---
 
-# 19. Cadastro geográfico da fazenda
+# 19. Cadastro do mapa da fazenda
 
 O usuário deverá possuir uma área destinada ao mapa da propriedade.
 
+**Decisão de modelagem:** o mapa do MVP **não é georreferenciado**. A representação da propriedade é uma **imagem enviada pelo próprio produtor** — print de satélite, croqui do agrônomo, mapa do CAR — e os polígonos são desenhados sobre essa imagem.
+
+Motivo: nenhuma funcionalidade do MVP faz consulta espacial. O que o sistema precisa saber de cada área é nome, tipo e hectares, e nada disso depende de coordenada real. Exigir georreferenciamento acrescentaria basemap, projeção e um passo de cadastro que o produtor provavelmente não termina, sem entregar nada que o produto consuma.
+
 ## RF-38 — Visualização da propriedade
 
-A aplicação deverá apresentar um mapa interativo.
+A aplicação deverá apresentar a imagem da propriedade com as áreas desenhadas por cima, com zoom e navegação.
 
 ---
 
-## RF-39 — Cadastro do perímetro
+## RF-39 — Upload da imagem da propriedade
 
-O usuário deverá conseguir definir o contorno aproximado da propriedade.
+O usuário deverá conseguir enviar uma imagem da propriedade (PNG, JPEG ou WebP).
+
+- Uma imagem ativa por fazenda; enviar outra substitui a anterior.
+- A imagem é privada e servida por rota autenticada, escopada pela fazenda.
+- **Substituir a imagem invalida os polígonos existentes.** As áreas mantêm nome, tipo, hectares e todo o histórico financeiro, mas perdem o desenho. O sistema deverá avisar antes de confirmar.
 
 ---
 
-## RF-40 — Upload
+## RF-40 — Coordenadas relativas à imagem
 
-Caso tecnicamente viável no MVP, o sistema poderá aceitar arquivos como:
+Os vértices dos polígonos deverão ser persistidos como fração da largura e da altura da imagem (`0..1`), nunca como latitude/longitude.
 
-```text
-KML
+Isso mantém o desenho correto em qualquer zoom, resolução de tela ou tamanho de canvas.
 
-KMZ
-
-GeoJSON
-```
-
-Upload de imagem também poderá existir, mas a representação principal da propriedade deverá utilizar coordenadas geográficas reais.
+Import de `KML`, `KMZ` e `GeoJSON` está **fora do MVP**.
 
 ---
 
 # 20. Áreas da propriedade
 
-Deverá existir uma entidade genérica chamada `FarmArea`.
+Deverá existir uma entidade para a imagem do mapa:
+
+```ts
+FarmMapImage {
+  id
+
+  farmId
+
+  storageKey
+  widthPx          // dimensões gravadas: a geometria é lida contra elas
+  heightPx
+
+  uploadedAt
+}
+```
+
+E uma entidade genérica chamada `FarmArea`.
 
 ```ts
 FarmArea {
   id
 
   farmId
+  mapImageId       // a imagem sobre a qual o polígono foi desenhado
 
   name
   type
 
-  geometryGeoJson  // jsonb — Polygon GeoJSON
+  shape            // jsonb — vértices em coordenadas 0..1 da imagem
 
-  hectares
+  hectares         // informado pelo produtor, não calculado
 
   metadata
 }
 ```
+
+O `shape` grava o espaço de coordenadas em que foi desenhado:
+
+```jsonc
+{ "space": "image", "version": 1, "points": [[0.12, 0.34], [0.18, 0.31]] }
+```
+
+O campo `space` existe para que uma adoção futura de coordenada real (`"space": "geo"`) conviva com os registros antigos — migração de conteúdo de coluna, não reestruturação do banco.
+
+`shape` e `hectares` são opcionais. Área cadastrada sem desenho e sem hectares é estado válido: dá para lançar despesa no "Pasto 4" antes de existir qualquer mapa.
 
 ---
 
@@ -1043,11 +1073,13 @@ Outro
 
 ---
 
-## RF-44 — Calcular hectares
+## RF-44 — Informar hectares
 
-O sistema deverá calcular automaticamente a área aproximada do polígono em hectares.
+O produtor deverá informar os hectares de cada área, por formulário ou dizendo ao agente.
 
-O cálculo será feito na aplicação a partir do GeoJSON (biblioteca de geometria esférica, ex. `@turf/area`), e não no banco.
+**Não há cálculo automático.** Sem coordenada geográfica real não existe área derivável do desenho, e o MVP não vai calibrar escala nem estimar por proporção — o produtor já conhece o tamanho dos seus pastos. O polígono é representação visual; o número é dado informado.
+
+Consequência aceita: `Farm.totalAreaHa` e a soma dos hectares das áreas **podem divergir**, e isso não é erro. Ninguém mapeia 100% da propriedade, e os dois números são estimativas independentes do mesmo produtor. Não há constraint entre eles.
 
 ---
 
@@ -1067,25 +1099,29 @@ Caso existam dados associados, o sistema deverá apresentar confirmação.
 
 # 22. Persistência dos polígonos
 
-Os polígonos deverão ser persistidos como GeoJSON em coluna `jsonb` no PostgreSQL.
+Os polígonos deverão ser persistidos em coluna `jsonb` no PostgreSQL, como lista de vértices em coordenadas relativas à imagem.
 
-O MVP não utilizará PostGIS. Consultas espaciais (interseção, distância, contém) estão fora do escopo — o que o sistema precisa saber sobre cada área (hectares, nome, tipo) é calculado na aplicação e gravado em colunas escalares.
+O MVP não utilizará PostGIS. Consultas espaciais (interseção, distância, contém) estão fora do escopo — o que o sistema precisa saber sobre cada área (nome, tipo, hectares) vive em colunas escalares.
 
 Fluxo:
 
 ```text
-Usuário desenha polígono
+Usuário envia imagem da propriedade
 ↓
-Frontend gera GeoJSON
+NestJS grava a imagem e suas dimensões em px
 ↓
-NestJS calcula hectares
+Usuário desenha polígono sobre a imagem
+↓
+Frontend normaliza os vértices para 0..1
+↓
+Usuário informa os hectares da área
 ↓
 PostgreSQL (jsonb + hectares numeric)
 ```
 
-Isso permitirá que o agente consulte informações sobre as áreas sem precisar analisar imagens da propriedade.
+Isso permite que o agente consulte e administre as áreas **sem nunca analisar a imagem** — ele lê nome, tipo e hectares do banco. A imagem é para o olho humano; o dado estruturado é para o agente.
 
-A modelagem deve manter o GeoJSON isolado em uma única coluna, para que a adoção futura de PostGIS seja uma migração de coluna e não uma reestruturação.
+A modelagem deve manter a geometria isolada em uma única coluna, discriminada por `space`, para que adotar coordenada real no futuro seja uma migração de conteúdo e não uma reestruturação.
 
 ---
 
@@ -1175,7 +1211,7 @@ O lote poderá estar associado a um pasto.
 
 ## RF-51 — Informações sobre o polígono
 
-Ao visualizar um pasto no mapa, deverão aparecer informações básicas.
+Ao visualizar um pasto no mapa, deverão aparecer informações básicas — os hectares informados e as cabeças contadas no banco.
 
 Exemplo:
 
@@ -1518,9 +1554,9 @@ updateArea
 deleteArea
 ```
 
-O agente poderá administrar dados da área, mas **não desenhar os polígonos**.
+O agente poderá administrar dados da área — criar, renomear, classificar, informar hectares, excluir — mas **não desenhar os polígonos**.
 
-O desenho será sempre realizado pelo usuário.
+O desenho será sempre realizado pelo usuário, no editor sobre a imagem. Não existe tool que receba geometria.
 
 ---
 
@@ -1710,18 +1746,18 @@ Farm é criada
 
 ---
 
-## Cadastro geográfico
+## Cadastro do mapa
 
 ```text
 Usuário abre mapa
 ↓
-Define perímetro da propriedade
+Envia uma imagem da propriedade
 ↓
-Desenha pastos/talhões
+Desenha pastos/talhões sobre a imagem
 ↓
-Nomeia áreas
+Nomeia áreas e informa hectares
 ↓
-Dados são armazenados como GeoJSON em jsonb
+Vértices são armazenados em 0..1 num jsonb
 ```
 
 ---
@@ -1885,6 +1921,12 @@ Mapa e demais interfaces são atualizados.
 Os seguintes itens não devem fazer parte do escopo inicial.
 
 ```text
+Mapa georreferenciado (lat/lng)
+
+Import de KML, KMZ e GeoJSON
+
+Cálculo automático de hectares
+
 Gateway de pagamento
 
 Cobrança de assinatura

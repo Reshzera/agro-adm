@@ -14,6 +14,8 @@ cp .env.example .env
 docker compose up -d          # Postgres 16
 yarn install:all              # deps de backend/ e frontend/
 yarn install                  # deps da raiz (só concurrently)
+yarn db:migrate               # aplica as migrations
+yarn db:seed                  # Fazenda Santa Clara
 yarn dev                      # backend em :3000, frontend em :5173
 ```
 
@@ -29,6 +31,27 @@ o frontend consulta esse endpoint na home para mostrar se o backend está no ar.
 | `yarn test` | suíte do backend |
 | `yarn eval` | stub — a pipeline de eval chega no ticket 14 |
 | `yarn db:up` / `db:down` / `db:logs` | Postgres do compose |
+| `yarn db:migrate` | `prisma migrate dev` |
+| `yarn db:seed` | reseta e reaplica a fixture Fazenda Santa Clara |
+| `yarn db:reset` | dropa, remigra e resemeia |
+| `yarn db:studio` | Prisma Studio |
+
+## Dados
+
+O schema vive em `backend/prisma/schema.prisma`. As decisões de modelagem estão
+no ticket 02 (`tickets/02-schema-prisma.md`), não em comentário no arquivo. As
+três que mais mordem: toda `Expense` tem ao menos uma `ExpenseAllocation` e
+`SUM(allocations.amount) = expense.amount` (allocation "geral" tem `areaId`
+nulo); `FarmArea.shape` é polígono em coordenadas 0..1 relativas à imagem do
+mapa, com `space` gravado junto; `FarmArea.hectares` é digitado pelo produtor e
+**não** tem invariante com `Farm.totalAreaHa`.
+
+**A fixture é a Fazenda Santa Clara**, em `backend/src/seed/santa-clara.ts`. Ela não
+é dado de vitrine: é o mundo contra o qual os testes e os evals de todas as
+fatias rodam. IDs são literais legíveis (`seed-area-talhao-1`) e as datas saem
+de um relógio congelado (`SEED_CLOCK`, 16/03/2026) — asserção sobre "esse mês"
+não pode depender de quando a suíte roda. Há uma segunda fazenda no seed só
+para que o teste de isolamento por `farmId` tenha contra quem falhar.
 
 ## Coisas que vão morder
 
@@ -46,6 +69,17 @@ via `POSTGRES_PORT` no `.env` (e refletir em `DATABASE_URL`).
 apenas o que tem prefixo `VITE_`. O backend lê pelo `ConfigModule`.
 
 **`HOST_URL` nasce sem uso.** É o ngrok do webhook do WhatsApp, na fatia seguinte.
+
+**A `DATABASE_URL` não fica no `schema.prisma`.** O Prisma 7 removeu o `url` do
+bloco `datasource`: a URL vive em `backend/prisma.config.ts` (que carrega o
+`.env` da raiz) para os comandos de migration, e o `PrismaClient` recebe um
+adapter `@prisma/adapter-pg` construído com ela. Quem instanciar `PrismaClient`
+sem adapter toma erro em runtime — use o `PrismaService`.
+
+**As colunas `jsonb` ainda não têm validação.** `Message.parts`,
+`PendingAction.args` e `FarmArea.shape` chegam como `JsonValue` do Prisma. A
+validação entra com class-validator junto dos DTOs, nas fatias que escrevem
+essas colunas — até lá, `shape` aceita ponto fora de 0..1 sem reclamar.
 
 **Jest com `watchman: false`.** O watchman instalado nesta máquina está quebrado
 (`libfmt` faltando) e fazia o jest sair sem rodar teste nenhum. Se o watchman

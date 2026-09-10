@@ -1,0 +1,227 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EntrySource {
+  MANUAL
+  WEB_AGENT
+  WHATSAPP_TEXT
+  WHATSAPP_AUDIO
+  WHATSAPP_IMAGE
+}
+
+enum ExpenseCategory {
+  FUEL
+  FEED_AND_SUPPLEMENT
+  FERTILIZER_AND_SEED
+  PESTICIDE
+  ANIMAL_HEALTH
+  PASTURE_AND_CROP_WORK
+  MACHINERY_AND_MAINTENANCE
+  LABOR
+  OTHER
+}
+
+enum FarmAreaType {
+  PASTURE
+  CROP_FIELD
+  OTHER
+}
+
+enum PendingActionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ownedFarms Farm[] @relation("FarmOwner")
+
+  @@index([phone])
+  @@map("user")
+}
+
+model Farm {
+  id          String @id @default(cuid())
+  ownerUserId String
+  owner       User   @relation("FarmOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  name            String?
+  totalAreaHa     Decimal? @db.Decimal(12, 2)
+  primaryActivity String?
+  location        String?
+  agentContext    String?
+
+  onboardingCompleted Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chats          Chat[]
+  expenses       Expense[]
+  revenues       Revenue[]
+  pendingActions PendingAction[]
+  mapImages      FarmMapImage[]
+  areas          FarmArea[]
+
+  @@index([ownerUserId])
+  @@map("farm")
+}
+
+model Chat {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  title String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages Message[]
+
+  @@index([farmId, updatedAt])
+  @@map("chat")
+}
+
+model Message {
+  id     String @id @default(cuid())
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  role  String
+  parts Json
+
+  createdAt DateTime @default(now())
+
+  @@index([chatId, createdAt])
+  @@map("message")
+}
+
+model Expense {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  amount      Decimal         @db.Decimal(14, 2)
+  date        DateTime        @db.Date
+  description String
+  category    ExpenseCategory
+  source      EntrySource
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations ExpenseAllocation[]
+
+  @@index([farmId, date])
+  @@index([farmId, category])
+  @@map("expense")
+}
+
+model ExpenseAllocation {
+  id        String  @id @default(cuid())
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  areaId String?
+  area   FarmArea? @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  amount Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([expenseId])
+  @@index([areaId])
+  @@map("expense_allocation")
+}
+
+model Revenue {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  amount      Decimal     @db.Decimal(14, 2)
+  date        DateTime    @db.Date
+  description String
+  source      EntrySource
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([farmId, date])
+  @@map("revenue")
+}
+
+model PendingAction {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  toolName String
+  args     Json
+
+  status    PendingActionStatus @default(PENDING)
+  expiresAt DateTime
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([farmId, status])
+  @@map("pending_action")
+}
+
+model FarmMapImage {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  storageKey String
+  widthPx    Int
+  heightPx   Int
+  uploadedAt DateTime @default(now())
+
+  areas FarmArea[]
+
+  @@index([farmId])
+  @@map("farm_map_image")
+}
+
+model FarmArea {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  mapImageId String?
+  mapImage   FarmMapImage? @relation(fields: [mapImageId], references: [id], onDelete: SetNull)
+
+  name     String
+  type     FarmAreaType
+  hectares Decimal?     @db.Decimal(10, 2)
+  shape    Json?
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  allocations ExpenseAllocation[]
+
+  @@unique([farmId, name])
+  @@index([farmId])
+  @@index([mapImageId])
+  @@map("farm_area")
+}

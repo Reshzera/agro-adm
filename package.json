@@ -10,7 +10,11 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres",
-    "install:all": "yarn --cwd backend install && yarn --cwd frontend install"
+    "install:all": "yarn --cwd backend install && yarn --cwd frontend install",
+    "db:migrate": "yarn --cwd backend db:migrate",
+    "db:seed": "yarn --cwd backend db:seed",
+    "db:reset": "yarn --cwd backend db:reset",
+    "db:studio": "yarn --cwd backend db:studio"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
