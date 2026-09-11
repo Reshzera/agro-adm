@@ -5,13 +5,23 @@ import {
   DefaultChatTransport,
   isStaticToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
-  lastAssistantMessageIsCompleteWithToolCalls,
   type UIMessage,
 } from 'ai'
 import { ToolRenderer } from '../../generative-ui/tool-renderer'
 import { chatEndpoints } from '../../../service/chat'
 import { farmEndpoints } from '../../../service/farm'
 import styles from './conversation.module.scss'
+
+const browserExecutedTools = ['tool-showManualForm']
+
+function lastStepWasAnsweredByTheBrowser({ messages }: { messages: UIMessage[] }): boolean {
+  const message = messages[messages.length - 1]
+  if (!message || message.role !== 'assistant') return false
+  const lastStepStart = message.parts.reduce((last, part, index) => part.type === 'step-start' ? index : last, -1)
+  const toolParts = message.parts.slice(lastStepStart + 1).filter(isStaticToolUIPart)
+  return toolParts.some((part) => browserExecutedTools.includes(part.type))
+    && toolParts.every((part) => part.state === 'output-available' || part.state === 'output-error')
+}
 
 type ConversationProps = {
   chatId: string
@@ -42,7 +52,7 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
     onFinish: onActivity,
     sendAutomaticallyWhen: (options) =>
       lastAssistantMessageIsCompleteWithApprovalResponses(options) ||
-      lastAssistantMessageIsCompleteWithToolCalls(options),
+      lastStepWasAnsweredByTheBrowser(options),
   })
 
   function submit(event: FormEvent<HTMLFormElement>) {

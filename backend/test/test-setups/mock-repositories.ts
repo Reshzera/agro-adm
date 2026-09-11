@@ -32,6 +32,7 @@ export type MockRepositories = ReturnType<typeof createMockRepositories>;
 export function createMockRepositories() {
   let profiles = new Map<string, Profile>();
   let farms = new Map<string, Farm>();
+  let expenses = new Map<string, { farmId: string }>();
   let chats = new Map<
     string,
     {
@@ -116,6 +117,15 @@ export function createMockRepositories() {
         return updated;
       },
     ),
+  };
+
+  const financial = {
+    deleteExpense: jest.fn((farmId: string, id: string) => {
+      const expense = expenses.get(id);
+      if (!expense || expense.farmId !== farmId) return { count: 0 };
+      expenses.delete(id);
+      return { count: 1 };
+    }),
   };
 
   const chat = {
@@ -238,6 +248,11 @@ export function createMockRepositories() {
         },
       ],
     ]);
+    expenses = new Map([
+      [SEED_IDS.expenses.diesel, { farmId: SEED_IDS.farms.santaClara }],
+      [SEED_IDS.expenses.vacina, { farmId: SEED_IDS.farms.santaClara }],
+      [SEED_IDS.expenses.boaVistaDiesel, { farmId: SEED_IDS.farms.boaVista }],
+    ]);
     chats = new Map([
       [
         SEED_IDS.chats.primeiraConversa,
@@ -294,8 +309,17 @@ export function createMockRepositories() {
     chat.setGeneratedTitle.mockClear();
     chat.replaceMessages.mockClear();
     chat.farmAgentContext.mockClear();
+    financial.deleteExpense.mockClear();
   }
 
   reset();
-  return { auth, farm, profile, chat, reset, now: new Date(SEED_CLOCK) };
+  return {
+    auth,
+    farm,
+    profile,
+    chat,
+    financial,
+    reset,
+    now: new Date(SEED_CLOCK),
+  };
 }

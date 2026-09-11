@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The server runs multiple model steps within one request, bounded by an explicit step limit
-- [ ] The conversation advances without the client having to auto-resend assistant-role messages to continue it
-- [ ] Eval and production share the same loop configuration and step limit
-- [ ] The existing approval flow for deleting an expense still works end to end
-- [ ] The agent eval suite shows no regression against the recorded baseline
+- [x] The server runs multiple model steps within one request, bounded by an explicit step limit
+- [x] The conversation advances without the client having to auto-resend assistant-role messages to continue it
+- [x] Eval and production share the same loop configuration and step limit
+- [x] The existing approval flow for deleting an expense still works end to end
+- [x] The agent eval suite shows no regression against the recorded baseline

@@ -10,6 +10,7 @@ import { AuthRepository } from '../../src/modules/auth/auth.repository';
 import { ChatRepository } from '../../src/modules/chat/chat.repository';
 import { PrismaService } from '../../src/modules/database/prisma.service';
 import { FarmRepository } from '../../src/modules/farm/farm.repository';
+import { FinancialRepository } from '../../src/modules/financial/financial.repository';
 import { ProfileRepository } from '../../src/modules/profile/profile.repository';
 import { SEED_CLOCK } from '../../src/seed/santa-clara';
 import { credentialsFor } from './auth';
@@ -52,6 +53,8 @@ export async function createTestApp(): Promise<TestApp> {
     .useValue(repositories.chat)
     .overrideProvider(FarmRepository)
     .useValue(repositories.farm)
+    .overrideProvider(FinancialRepository)
+    .useValue(repositories.financial)
     .overrideProvider(ProfileRepository)
     .useValue(repositories.profile)
     .compile();

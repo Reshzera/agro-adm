@@ -49,6 +49,13 @@ resposta. O relógio é o `SEED_CLOCK` e o mundo é a Fazenda Santa Clara, os
 mesmos do `yarn test`; os casos que dependem de confirmação (guardrail nível 2)
 trazem os turnos anteriores prontos no histórico.
 
+Um turno pode ter vários passos: o servidor roda o loop até o limite de
+`AGENT_MAX_STEPS` (`backend/src/modules/chat/agent-loop.ts`), e o eval importa o
+mesmo `agentStopWhen` — se o limite mudar, muda para os dois. O navegador só
+reenvia a conversa quando quem responde é o produtor: aprovação de exclusão ou
+formulário manual. Tool sem `execute` (aprovação pendente, formulário) encerra o
+passo; é assim que o loop para e espera a pessoa.
+
 A suíte falha abaixo de 90% de acerto (`EVAL_THRESHOLD`), e não por caso
 isolado: um vermelho é ruído, três que passavam e pararam é regressão
 (`EVAL_MAX_REGRESSIONS`). A referência do que passava fica em

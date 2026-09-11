@@ -9,6 +9,7 @@ import {
 } from 'ai';
 import { randomUUID } from 'node:crypto';
 import { AiService } from '../ai/ai.service';
+import { agentStopWhen } from './agent-loop';
 import { FinancialService } from '../financial/financial.service';
 import { FarmService } from '../farm/farm.service';
 import { chatTools } from './tools';
@@ -137,6 +138,7 @@ export class ChatService {
       system: systemPrompt(farm, this.ai.now()),
       messages: await convertToModelMessages(messages),
       tools: chatTools(farmId, this.ai.now(), this.financial, this.farms),
+      stopWhen: agentStopWhen(),
     });
 
     return result.toUIMessageStream({

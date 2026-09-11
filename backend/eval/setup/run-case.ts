@@ -1,11 +1,11 @@
 import {
   generateText,
-  stepCountIs,
   type LanguageModel,
   type ModelMessage,
   type Tool,
   type ToolSet,
 } from 'ai';
+import { agentStopWhen } from '../../src/modules/chat/agent-loop';
 import type { FarmAgentContext } from '../../src/modules/chat/chat.repository';
 import { systemPrompt } from '../../src/modules/chat/chat.service';
 import { chatTools } from '../../src/modules/chat/tools';
@@ -14,7 +14,6 @@ import type { CaseResult, EvalCase, RecordedCall } from './case';
 import { evalFarmService, evalFinancialService } from './world';
 
 const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY ?? '4');
-const MAX_STEPS = Number(process.env.EVAL_MAX_STEPS ?? '4');
 
 const READ_ONLY_TOOLS = [
   'getFarm',
@@ -69,7 +68,7 @@ async function runCase(
       system: systemPrompt(evalCase.farm, SEED_CLOCK),
       messages,
       tools: turnTools(evalCase.farm),
-      stopWhen: stepCountIs(MAX_STEPS),
+      stopWhen: agentStopWhen(),
       maxRetries: 2,
     });
 
