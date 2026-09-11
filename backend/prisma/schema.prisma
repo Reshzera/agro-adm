@@ -134,7 +134,7 @@ model Farm {
   mapImages      FarmMapImage[]
   areas          FarmArea[]
 
-  @@index([ownerUserId])
+  @@unique([ownerUserId])
   @@map("farm")
 }
 

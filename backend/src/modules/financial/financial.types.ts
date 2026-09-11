@@ -18,3 +18,5 @@ export type FinancialEntryType = 'EXPENSE' | 'REVENUE';
 export type FinancialEntryListFilters = ExpenseListFilters & {
   type?: FinancialEntryType;
 };
+
+export type FinancialEntryListScope = 'ALL' | 'EXPENSES_ONLY' | 'REVENUES_ONLY';

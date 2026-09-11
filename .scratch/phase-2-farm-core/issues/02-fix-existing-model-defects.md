@@ -4,9 +4,9 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The database enforces one farm per owner, via migration
-- [ ] Farm context for a request resolves through a unique lookup rather than an unordered "first match"
-- [ ] Filtering entries by category no longer silently drops revenues: either they remain in the result, or the endpoint states plainly that the filtered view is expenses-only
-- [ ] A test covers each of the two, including the cross-farm case
+- [x] The database enforces one farm per owner, via migration
+- [x] Farm context for a request resolves through a unique lookup rather than an unordered "first match"
+- [x] Filtering entries by category no longer silently drops revenues: either they remain in the result, or the endpoint states plainly that the filtered view is expenses-only
+- [x] A test covers each of the two, including the cross-farm case

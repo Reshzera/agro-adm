@@ -9,7 +9,7 @@ export class AuthRepository {
   }
 
   async findFarmIdForUser(userId: string): Promise<string | null> {
-    const farm = await this.prisma.farm.findFirst({
+    const farm = await this.prisma.farm.findUnique({
       where: { ownerUserId: userId },
       select: { id: true },
     });

@@ -179,7 +179,7 @@ export function FinancialPage() {
       </div>
 
       {entries.data && summary.data && (
-        <FinancialCharts entries={entries.data} categories={summary.data.expensesByCategory} />
+        <FinancialCharts entries={entries.data.entries} categories={summary.data.expensesByCategory} />
       )}
 
       <section className={styles.ledger} aria-labelledby="entries-title">
@@ -257,13 +257,20 @@ export function FinancialPage() {
           </div>
         </header>
 
+        {entries.data?.scope === "EXPENSES_ONLY" && filters.type !== "EXPENSE" && (
+          <p className={styles.scopeNotice}>
+            Filtro por categoria: este recorte mostra apenas despesas, porque
+            receitas não têm categoria.
+          </p>
+        )}
+
         {entries.isPending ? (
           <p className={styles.status}>Conferindo o livro-caixa…</p>
         ) : entries.isError ? (
           <p className={styles.error}>
             Não foi possível carregar os lançamentos.
           </p>
-        ) : entries.data.length === 0 ? (
+        ) : entries.data.entries.length === 0 ? (
           <div className={styles.empty}>
             <b>∅</b>
             <p>Nenhum lançamento neste recorte.</p>
@@ -285,7 +292,7 @@ export function FinancialPage() {
                 </tr>
               </thead>
               <tbody>
-                {entries.data.map((entry) => (
+                {entries.data.entries.map((entry) => (
                   <tr key={`${entry.type}-${entry.id}`}>
                     <td>
                       <time dateTime={entry.date}>

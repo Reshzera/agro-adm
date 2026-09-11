@@ -35,6 +35,26 @@ describe('authentication', () => {
     );
   });
 
+  it('gives each owner the farm context of their own farm', async () => {
+    const joao = await testApp
+      .as(SEED_IDS.users.joao)
+      .get('/farms')
+      .expect(200);
+    const marina = await testApp
+      .as(SEED_IDS.users.marina)
+      .get('/farms')
+      .expect(200);
+
+    expect(joao.body).toMatchObject({ id: SEED_IDS.farms.santaClara });
+    expect(marina.body).toMatchObject({ id: SEED_IDS.farms.boaVista });
+  });
+
+  it('refuses a second farm for an owner that already has one', () => {
+    expect(() =>
+      testApp.repositories.auth.createEmptyFarmForUser(SEED_IDS.users.joao),
+    ).toThrow('Unique constraint failed');
+  });
+
   it('updates the profile name, email, and phone number', async () => {
     const response = await testApp
       .as(SEED_IDS.users.joao)

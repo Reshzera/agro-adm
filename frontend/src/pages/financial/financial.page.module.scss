@@ -23,6 +23,7 @@ button.primary { border-color: var(--color-accent); background: var(--color-acce
 .amount { text-align: right; white-space: nowrap; font: 750 .75rem/1 var(--font-mono); &[data-type='REVENUE'] { color: var(--color-accent); } &[data-type='EXPENSE'] { color: var(--color-danger); } }
 .rowActions { display: flex; justify-content: end; gap: .2rem; button { padding: .35rem .45rem; border: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; font: 700 .62rem/1 var(--font-body); &:hover { color: var(--color-accent); text-decoration: underline; } &.delete:hover { color: var(--color-danger); } } }
 .status, .error { margin: 0; padding: 2.5rem; color: var(--color-text-muted); font-size: .78rem; }.error { color: var(--color-danger); }
+.scopeNotice { margin: 0; padding: .85rem 1.5rem; border-bottom: 1px solid var(--color-border); background: var(--color-surface-raised); color: var(--color-text-muted); font: 650 .7rem/1.4 var(--font-body); }
 .empty { display: grid; justify-items: center; padding: 4rem 1rem; color: var(--color-text-muted); text-align: center; b { color: var(--color-border); font: 400 3.5rem/1 var(--font-display); } p { margin: .7rem 0; } button { border: 0; background: transparent; color: var(--color-accent); cursor: pointer; font-weight: 750; text-decoration: underline; } }
 
 .overlay { position: fixed; z-index: 20; inset: 0; display: flex; justify-content: end; background: rgba(20, 27, 22, .46); backdrop-filter: blur(3px); animation: fade .2s both; }

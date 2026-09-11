@@ -9,6 +9,7 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { UpdateRevenueDto } from './dto/update-revenue.dto';
 import {
   type FinancialEntryListFilters,
+  type FinancialEntryListScope,
   type ExpenseListFilters,
   type FinancialPeriod,
 } from './financial.types';
@@ -141,19 +142,25 @@ export class FinancialService {
     farmId: string,
     filters: FinancialEntryListFilters = {},
   ) {
+    const scope = this.entryListScope(filters);
     const expenses =
-      filters.type === 'REVENUE'
-        ? []
-        : await this.listExpenses(farmId, filters);
+      scope === 'REVENUES_ONLY' ? [] : await this.listExpenses(farmId, filters);
     const revenues =
-      filters.type === 'EXPENSE' || filters.category
-        ? []
-        : await this.listRevenues(farmId, filters);
+      scope === 'EXPENSES_ONLY' ? [] : await this.listRevenues(farmId, filters);
 
-    return [
-      ...expenses.map((expense) => ({ type: 'EXPENSE' as const, ...expense })),
-      ...revenues.map((revenue) => ({ type: 'REVENUE' as const, ...revenue })),
-    ].sort((left, right) => right.date.getTime() - left.date.getTime());
+    return {
+      scope,
+      entries: [
+        ...expenses.map((expense) => ({
+          type: 'EXPENSE' as const,
+          ...expense,
+        })),
+        ...revenues.map((revenue) => ({
+          type: 'REVENUE' as const,
+          ...revenue,
+        })),
+      ].sort((left, right) => right.date.getTime() - left.date.getTime()),
+    };
   }
 
   async getExpensesByCategory(farmId: string, period: FinancialPeriod = {}) {
@@ -198,6 +205,14 @@ export class FinancialService {
         }),
       ),
     };
+  }
+
+  private entryListScope(
+    filters: FinancialEntryListFilters,
+  ): FinancialEntryListScope {
+    if (filters.type === 'REVENUE') return 'REVENUES_ONLY';
+    if (filters.type === 'EXPENSE' || filters.category) return 'EXPENSES_ONLY';
+    return 'ALL';
   }
 
   private async allocationsForFarm(

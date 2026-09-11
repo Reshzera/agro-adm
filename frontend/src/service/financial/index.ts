@@ -4,6 +4,7 @@ import type { FinancialEntryPayload, FinancialFilters } from "./payloads";
 import type {
   FarmAreaOption,
   FinancialEntry,
+  FinancialEntryList,
   FinancialSummary,
 } from "./responses";
 
@@ -11,7 +12,7 @@ export const financialEndpoints = {
   entries: (
     filters: FinancialFilters,
     signal?: AbortSignal,
-  ): Promise<AxiosResponse<FinancialEntry[]>> =>
+  ): Promise<AxiosResponse<FinancialEntryList>> =>
     client.get("/financial/entries", { params: filters, signal }),
   summary: (
     filters: Pick<FinancialFilters, "from" | "to">,

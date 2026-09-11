@@ -44,8 +44,17 @@ export function createMockRepositories() {
     }
   >();
 
+  function farmsOwnedBy(userId: string): Farm[] {
+    return [...farms.values()].filter((farm) => farm.ownerUserId === userId);
+  }
+
   const auth = {
     createEmptyFarmForUser: jest.fn((ownerUserId: string) => {
+      if (farmsOwnedBy(ownerUserId).length) {
+        throw new Error(
+          'Unique constraint failed on the fields: (`ownerUserId`)',
+        );
+      }
       const id = `farm-${ownerUserId}`;
       farms.set(id, {
         id,
@@ -61,10 +70,11 @@ export function createMockRepositories() {
       });
     }),
     findFarmIdForUser: jest.fn((userId: string) => {
-      return (
-        [...farms.values()].find((farm) => farm.ownerUserId === userId)?.id ??
-        null
-      );
+      const owned = farmsOwnedBy(userId);
+      if (owned.length > 1) {
+        throw new Error('findUnique matched more than one farm.');
+      }
+      return owned[0]?.id ?? null;
     }),
   };
 

@@ -126,15 +126,50 @@ describe('FinancialService', () => {
     });
   });
 
-  it('does not mix uncategorized revenues into a category filter', async () => {
-    await service.listFinancialEntries('farm-1', {
+  it('declares an expenses-only scope when filtering by category', async () => {
+    const result = await service.listFinancialEntries('farm-1', {
       category: ExpenseCategory.FUEL,
     });
 
+    expect(result.scope).toBe('EXPENSES_ONLY');
     expect(repository.listExpenses).toHaveBeenCalledWith('farm-1', {
       category: ExpenseCategory.FUEL,
     });
     expect(repository.listRevenues).not.toHaveBeenCalled();
+  });
+
+  it('keeps revenues in an unfiltered list and calls it a full scope', async () => {
+    repository.listExpenses.mockResolvedValue([
+      { id: 'expense-1', date: new Date('2026-03-10T00:00:00.000Z') },
+    ]);
+    repository.listRevenues.mockResolvedValue([
+      { id: 'revenue-1', date: new Date('2026-03-12T00:00:00.000Z') } as never,
+    ]);
+
+    const result = await service.listFinancialEntries('farm-1');
+
+    expect(result.scope).toBe('ALL');
+    expect(result.entries).toEqual([
+      {
+        type: 'REVENUE',
+        id: 'revenue-1',
+        date: new Date('2026-03-12T00:00:00.000Z'),
+      },
+      {
+        type: 'EXPENSE',
+        id: 'expense-1',
+        date: new Date('2026-03-10T00:00:00.000Z'),
+      },
+    ]);
+  });
+
+  it('declares a revenues-only scope when filtering by type', async () => {
+    const result = await service.listFinancialEntries('farm-1', {
+      type: 'REVENUE',
+    });
+
+    expect(result.scope).toBe('REVENUES_ONLY');
+    expect(repository.listExpenses).not.toHaveBeenCalled();
   });
 
   it('narrows expenses to an area alongside the period', async () => {

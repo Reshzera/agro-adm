@@ -29,6 +29,16 @@ export type FinancialEntry = {
   allocations?: Allocation[];
 };
 
+export type FinancialEntryListScope =
+  | "ALL"
+  | "EXPENSES_ONLY"
+  | "REVENUES_ONLY";
+
+export type FinancialEntryList = {
+  scope: FinancialEntryListScope;
+  entries: FinancialEntry[];
+};
+
 export type FinancialSummary = {
   totalExpenses: string;
   totalRevenues: string;
