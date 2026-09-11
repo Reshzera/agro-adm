@@ -587,6 +587,7 @@ model RuleEvaluation {
   @@index([farmId, evaluatedAt])
   @@index([correlationId])
   @@index([ruleId, evaluatedAt])
+  @@unique([triggerEventId, ruleId, ruleVersion])
   @@map("rule_evaluation")
 }
 

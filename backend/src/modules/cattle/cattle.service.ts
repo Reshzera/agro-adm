@@ -7,6 +7,7 @@ import {
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../database/database.service';
+import { OutboxProcessor } from '../outbox/outbox.processor';
 import {
   type MoveCattleLotCommand,
   parseMoveCattleLotCommand,
@@ -25,6 +26,7 @@ export class CattleService {
   constructor(
     private readonly repository: CattleRepository,
     private readonly db: DatabaseService,
+    private readonly outbox: OutboxProcessor,
   ) {}
 
   async listLots(farmId: string) {
@@ -165,7 +167,7 @@ export class CattleService {
     });
   }
 
-  moveLot(
+  async moveLot(
     farmId: string,
     actorId: string,
     rawInput: unknown,
@@ -175,7 +177,7 @@ export class CattleService {
     const input = parseMoveCattleLotCommand(rawInput);
     const requestHash = this.movementRequestHash(input);
 
-    return this.db.transaction(async () => {
+    const result = await this.db.transaction(async () => {
       const replay = await this.repository.findMovementIdempotency(
         farmId,
         input.idempotencyKey,
@@ -340,6 +342,10 @@ export class CattleService {
       await this.repository.completeMovementIdempotency(idempotency.id, result);
       return result;
     });
+    const resultObject = result as Prisma.JsonObject;
+    const outbox = resultObject.outbox as Prisma.JsonObject;
+    if (typeof outbox.id === 'string') this.outbox.dispatch(outbox.id);
+    return result;
   }
 
   private presentLot<T extends { occupancies: unknown[] }>(lot: T) {

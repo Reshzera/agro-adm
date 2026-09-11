@@ -12,11 +12,11 @@ This is the largest ticket in the phase. It is deliberately not split, because e
 
 **Status:** ready-for-agent
 
-- [ ] Moving a lot goes through a command whose payload is validated by a single schema definition
-- [ ] The agent-facing tool schema is derived from that same command schema, and therefore cannot accept a farm identifier
-- [ ] Each blocking invariant listed above rejects with a typed error naming which check failed, before any write
-- [ ] One transaction closes the previous occupancy, records the movement, opens the new occupancy, writes the domain event and queues the outbox row — a failure at any point leaves none of it
-- [ ] The domain event carries correlation and causation identifiers, and distinguishes occurrence time from recording time
-- [ ] Replaying the same request returns the original outcome instead of moving the lot again or emitting a second event
-- [ ] A backdated movement is accepted and preserves the stated occurrence time
-- [ ] The open-occupancy invariant from ticket 05 holds after every move
+- [x] Moving a lot goes through a command whose payload is validated by a single schema definition
+- [x] The agent-facing tool schema is derived from that same command schema, and therefore cannot accept a farm identifier
+- [x] Each blocking invariant listed above rejects with a typed error naming which check failed, before any write
+- [x] One transaction closes the previous occupancy, records the movement, opens the new occupancy, writes the domain event and queues the outbox row — a failure at any point leaves none of it
+- [x] The domain event carries correlation and causation identifiers, and distinguishes occurrence time from recording time
+- [x] Replaying the same request returns the original outcome instead of moving the lot again or emitting a second event
+- [x] A backdated movement is accepted and preserves the stated occurrence time
+- [x] The open-occupancy invariant from ticket 05 holds after every move

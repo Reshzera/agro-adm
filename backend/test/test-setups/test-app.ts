@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { jest } from '@jest/globals';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
@@ -13,6 +14,7 @@ import { DatabaseService } from '../../src/modules/database/database.service';
 import { PrismaService } from '../../src/modules/database/prisma.service';
 import { FarmRepository } from '../../src/modules/farm/farm.repository';
 import { FinancialRepository } from '../../src/modules/financial/financial.repository';
+import { OutboxProcessor } from '../../src/modules/outbox/outbox.processor';
 import { ProfileRepository } from '../../src/modules/profile/profile.repository';
 import { SEED_CLOCK } from '../../src/seed/santa-clara';
 import { credentialsFor } from './auth';
@@ -43,6 +45,7 @@ export async function createTestApp(): Promise<TestApp> {
     titleModel: titleModel.model,
     now: () => new Date(SEED_CLOCK),
   };
+  const outbox: Pick<OutboxProcessor, 'dispatch'> = { dispatch: jest.fn() };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(AiService)
@@ -63,6 +66,8 @@ export async function createTestApp(): Promise<TestApp> {
     .useValue(repositories.financial)
     .overrideProvider(ProfileRepository)
     .useValue(repositories.profile)
+    .overrideProvider(OutboxProcessor)
+    .useValue(outbox)
     .compile();
 
   const app =
