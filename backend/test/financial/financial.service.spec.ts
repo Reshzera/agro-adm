@@ -9,6 +9,14 @@ type ExpenseAllocationSummary = {
 
 type RevenueSummary = { amount: { toString(): string } };
 
+type ExpenseListFilters = {
+  from?: Date;
+  to?: Date;
+  category?: ExpenseCategory;
+  term?: string;
+  areaId?: string;
+};
+
 describe('FinancialService', () => {
   const repository = {
     areasBelongToFarm:
@@ -17,7 +25,10 @@ describe('FinancialService', () => {
     findExpense: jest.fn(),
     updateExpense: jest.fn(),
     deleteExpense: jest.fn(),
-    listExpenses: jest.fn(),
+    listExpenses:
+      jest.fn<
+        (farmId: string, filters: ExpenseListFilters) => Promise<unknown[]>
+      >(),
     listExpenseAllocations:
       jest.fn<
         (

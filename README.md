@@ -97,10 +97,12 @@ bloco `datasource`: a URL vive em `backend/prisma.config.ts` (que carrega o
 adapter `@prisma/adapter-pg` construído com ela. Quem instanciar `PrismaClient`
 sem adapter toma erro em runtime — use o `PrismaService`.
 
-**As colunas `jsonb` ainda não têm validação.** `Message.parts`,
-`PendingAction.args` e `FarmArea.shape` chegam como `JsonValue` do Prisma. A
-validação entra com class-validator junto dos DTOs, nas fatias que escrevem
-essas colunas — até lá, `shape` aceita ponto fora de 0..1 sem reclamar.
+**Nem toda coluna `jsonb` tem validação.** `Message.parts` já passa por
+`validateUIMessages` na leitura do `ChatService`: o repositório devolve
+`JsonValue` e quem transforma em `UIMessage` é o validador, não um cast. Já
+`PendingAction.args` e `FarmArea.shape` continuam chegando como `JsonValue` crua
+— a validação entra com class-validator junto dos DTOs, nas fatias que escrevem
+essas colunas, e até lá `shape` aceita ponto fora de 0..1 sem reclamar.
 
 **Jest com `watchman: false`.** O watchman instalado nesta máquina está quebrado
 (`libfmt` faltando) e fazia o jest sair sem rodar teste nenhum. Se o watchman

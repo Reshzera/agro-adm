@@ -3,13 +3,12 @@ import { useChat } from '@ai-sdk/react'
 import { useQuery } from '@tanstack/react-query'
 import {
   DefaultChatTransport,
-  isToolUIPart,
+  isStaticToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
   lastAssistantMessageIsCompleteWithToolCalls,
   type UIMessage,
 } from 'ai'
 import { ToolRenderer } from '../../generative-ui/tool-renderer'
-import type { ToolPart } from '../../generative-ui/types'
 import { chatEndpoints } from '../../../service/chat'
 import { farmEndpoints } from '../../../service/farm'
 import styles from './conversation.module.scss'
@@ -70,10 +69,10 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
         <span>{message.role === 'user' ? 'Você' : 'Agro-adm'}</span>
         {message.parts.map((part, index) => {
           if (part.type === 'text') return <p key={index}>{part.text}</p>
-          if (!isToolUIPart(part)) return null
+          if (!isStaticToolUIPart(part)) return null
           return <ToolRenderer
             key={part.toolCallId}
-            part={part as unknown as ToolPart}
+            part={part}
             actions={{
               approve: (id, approved) => addToolApprovalResponse({ id, approved }),
               submitToolOutput: (toolCallId, output) => addToolOutput({ tool: 'showManualForm', toolCallId, output }),

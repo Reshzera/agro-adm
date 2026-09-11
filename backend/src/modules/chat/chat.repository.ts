@@ -2,16 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { ChatSource, type Prisma } from '@prisma/client';
 import { PrismaService } from '../database/prisma.service';
 
-export type StoredUiMessage = {
+export type StoredMessage = {
   id: string;
   role: string;
-  parts: Prisma.InputJsonValue;
+  parts: Prisma.JsonValue;
+};
+
+export type MessageToStore = {
+  id: string;
+  role: string;
+  parts: unknown;
 };
 
 export type ChatWithMessages = {
   id: string;
   title: string | null;
-  messages: StoredUiMessage[];
+  messages: StoredMessage[];
 };
 
 export type ChatSummary = {
@@ -32,6 +38,10 @@ export type FarmAgentContext = {
   onboardingCompleted: boolean;
   areas: Array<{ id: string; name: string; type: string }>;
 };
+
+function toJsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
 
 @Injectable()
 export class ChatRepository {
@@ -59,14 +69,18 @@ export class ChatRepository {
           orderBy: { createdAt: 'asc' },
         },
       },
-    }) as unknown as Promise<ChatWithMessages | null>;
+    });
   }
 
   create(chatId: string, farmId: string): Promise<ChatWithMessages> {
     return this.prisma.chat.create({
       data: { id: chatId, farmId, source: ChatSource.WEB },
-      select: { id: true, title: true, messages: true },
-    }) as unknown as Promise<ChatWithMessages>;
+      select: {
+        id: true,
+        title: true,
+        messages: { select: { id: true, role: true, parts: true } },
+      },
+    });
   }
 
   async rename(
@@ -98,12 +112,17 @@ export class ChatRepository {
 
   async replaceMessages(
     chatId: string,
-    messages: StoredUiMessage[],
+    messages: MessageToStore[],
   ): Promise<void> {
     await this.prisma.$transaction([
       this.prisma.message.deleteMany({ where: { chatId } }),
       this.prisma.message.createMany({
-        data: messages.map((message) => ({ ...message, chatId })),
+        data: messages.map((message) => ({
+          id: message.id,
+          role: message.role,
+          parts: toJsonValue(message.parts),
+          chatId,
+        })),
       }),
       this.prisma.chat.update({
         where: { id: chatId },

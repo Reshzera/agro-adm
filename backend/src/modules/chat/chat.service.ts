@@ -15,7 +15,8 @@ import { chatTools } from './tools';
 import {
   ChatRepository,
   type FarmAgentContext,
-  type StoredUiMessage,
+  type MessageToStore,
+  type StoredMessage,
 } from './chat.repository';
 import { ChatNotFoundError } from './errors/chat-not-found.error';
 import { PostChatDto } from './dto/post-chat.dto';
@@ -77,12 +78,12 @@ export function systemPrompt(farm: FarmAgentContext, now: Date): string {
   ].join('\n\n');
 }
 
-function toStoredMessage(message: UIMessage): StoredUiMessage {
-  return {
-    id: message.id,
-    role: message.role,
-    parts: message.parts as unknown as StoredUiMessage['parts'],
-  };
+function toMessageToStore(message: UIMessage): MessageToStore {
+  return { id: message.id, role: message.role, parts: message.parts };
+}
+
+function readStoredMessages(messages: StoredMessage[]): Promise<UIMessage[]> {
+  return validateUIMessages({ messages });
 }
 
 @Injectable()
@@ -115,27 +116,26 @@ export class ChatService {
   async history(farmId: string, chatId: string): Promise<UIMessage[]> {
     const chat = await this.repository.findForFarm(chatId, farmId);
     if (!chat) throw new ChatNotFoundError();
-    return chat.messages as UIMessage[];
+    return readStoredMessages(chat.messages);
   }
 
   async stream(farmId: string, input: ChatInput) {
     let chat = await this.repository.findForFarm(input.id, farmId);
     if (!chat) chat = await this.repository.create(input.id, farmId);
 
-    const messages = [
-      ...(chat.messages as UIMessage[]).filter(
-        (message) => message.id !== input.message.id,
-      ),
-      input.message as unknown as UIMessage,
-    ];
-    const validatedMessages = await validateUIMessages({ messages });
+    const messages = await validateUIMessages({
+      messages: [
+        ...chat.messages.filter((message) => message.id !== input.message.id),
+        input.message,
+      ],
+    });
     const farm = await this.repository.farmAgentContext(farmId);
     if (!farm) throw new ChatNotFoundError();
 
     const result = streamText({
       model: this.ai.model,
       system: systemPrompt(farm, this.ai.now()),
-      messages: await convertToModelMessages(validatedMessages),
+      messages: await convertToModelMessages(messages),
       tools: chatTools(farmId, this.ai.now(), this.financial, this.farms),
     });
 
@@ -145,7 +145,7 @@ export class ChatService {
       onFinish: async ({ messages: completeMessages }) => {
         await this.repository.replaceMessages(
           chat.id,
-          completeMessages.map(toStoredMessage),
+          completeMessages.map(toMessageToStore),
         );
         if (chat.title === null) {
           let title = fallbackTitle(completeMessages);

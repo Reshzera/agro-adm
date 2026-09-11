@@ -1,6 +1,9 @@
 import { jest } from '@jest/globals';
 import { SEED_CLOCK, SEED_IDS } from '../../src/seed/santa-clara';
-import type { StoredUiMessage } from '../../src/modules/chat/chat.repository';
+import type {
+  MessageToStore,
+  StoredMessage,
+} from '../../src/modules/chat/chat.repository';
 import { ChatSource } from '@prisma/client';
 
 type Profile = {
@@ -37,7 +40,7 @@ export function createMockRepositories() {
       source: ChatSource;
       updatedAt: Date;
       archivedAt: Date | null;
-      messages: StoredUiMessage[];
+      messages: StoredMessage[];
     }
   >();
 
@@ -129,7 +132,7 @@ export function createMockRepositories() {
         source: ChatSource.WEB,
         updatedAt: new Date(),
         archivedAt: null,
-        messages: [] as StoredUiMessage[],
+        messages: [] as StoredMessage[],
       };
       chats.set(id, item);
       return { id, title: item.title, messages: item.messages };
@@ -151,10 +154,10 @@ export function createMockRepositories() {
       const item = chats.get(id);
       if (item && item.title === null && !item.archivedAt) item.title = title;
     }),
-    replaceMessages: jest.fn((id: string, messages: StoredUiMessage[]) => {
+    replaceMessages: jest.fn((id: string, messages: MessageToStore[]) => {
       const item = chats.get(id);
       if (!item) throw new Error('Chat not found.');
-      item.messages = messages;
+      item.messages = JSON.parse(JSON.stringify(messages)) as StoredMessage[];
       item.updatedAt = new Date();
     }),
     farmAgentContext: jest.fn((farmId: string) => {

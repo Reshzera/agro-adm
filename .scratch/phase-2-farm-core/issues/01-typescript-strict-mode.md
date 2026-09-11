@@ -4,10 +4,10 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Full strict mode is on in both the backend and the frontend, with no lingering per-flag opt-outs for implicit `any` or bind/call/apply checking
-- [ ] The unchecked casts bridging Prisma's JSON columns to AI SDK message types are replaced by a typed boundary or a runtime validator, rather than passed through
-- [ ] The backend test suite passes
-- [ ] The agent eval suite shows no regression against the recorded baseline
-- [ ] The frontend type-check and build pass
+- [x] Full strict mode is on in both the backend and the frontend, with no lingering per-flag opt-outs for implicit `any` or bind/call/apply checking
+- [x] The unchecked casts bridging Prisma's JSON columns to AI SDK message types are replaced by a typed boundary or a runtime validator, rather than passed through
+- [x] The backend test suite passes
+- [x] The agent eval suite shows no regression against the recorded baseline
+- [x] The frontend type-check and build pass
