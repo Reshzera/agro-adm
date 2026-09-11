@@ -11,7 +11,11 @@ import { systemPrompt } from '../../src/modules/chat/chat.service';
 import { chatTools } from '../../src/modules/chat/tools';
 import { SEED_CLOCK, SEED_IDS } from '../../src/seed/santa-clara';
 import type { CaseResult, EvalCase, RecordedCall } from './case';
-import { evalFarmService, evalFinancialService } from './world';
+import {
+  evalCattleService,
+  evalFarmService,
+  evalFinancialService,
+} from './world';
 
 const CONCURRENCY = Number(process.env.EVAL_CONCURRENCY ?? '4');
 
@@ -20,15 +24,18 @@ const READ_ONLY_TOOLS = [
   'getExpenses',
   'getRevenue',
   'getFinancialSummary',
+  'getCattleOverview',
 ];
 
 function productionTools(farm: FarmAgentContext): Record<string, Tool> {
-  return chatTools(
-    SEED_IDS.farms.santaClara,
-    SEED_CLOCK,
-    evalFinancialService(),
-    evalFarmService(farm),
-  );
+  return chatTools({
+    farmId: SEED_IDS.farms.santaClara,
+    actorId: SEED_IDS.users.joao,
+    now: SEED_CLOCK,
+    financial: evalFinancialService(),
+    farms: evalFarmService(farm),
+    cattle: evalCattleService(),
+  });
 }
 
 function turnTools(farm: FarmAgentContext): ToolSet {

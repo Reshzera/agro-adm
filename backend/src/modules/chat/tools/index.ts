@@ -1,6 +1,6 @@
 import { tool } from 'ai';
-import type { FinancialService } from '../../financial/financial.service';
-import type { FarmService } from '../../farm/farm.service';
+import { createCattleLot } from './create-cattle-lot/implementation';
+import { createCattleLotRegistry } from './create-cattle-lot/registry';
 import { createExpense } from './create-expense/implementation';
 import { createExpenseRegistry } from './create-expense/registry';
 import { deleteExpense } from './delete-expense/implementation';
@@ -9,12 +9,16 @@ import { createRevenue } from './create-revenue/implementation';
 import { createRevenueRegistry } from './create-revenue/registry';
 import { getExpenses } from './get-expenses/implementation';
 import { getExpensesRegistry } from './get-expenses/registry';
+import { getCattleOverview } from './get-cattle-overview/implementation';
+import { getCattleOverviewRegistry } from './get-cattle-overview/registry';
 import { getFarm } from './get-farm/implementation';
 import { getFarmRegistry } from './get-farm/registry';
 import { getFinancialSummary } from './get-financial-summary/implementation';
 import { getFinancialSummaryRegistry } from './get-financial-summary/registry';
 import { getRevenue } from './get-revenue/implementation';
 import { getRevenueRegistry } from './get-revenue/registry';
+import { moveCattleLot } from './move-cattle-lot/implementation';
+import { moveCattleLotRegistry } from './move-cattle-lot/registry';
 import { showManualFormRegistry } from './show-manual-form/registry';
 import { updateExpense } from './update-expense/implementation';
 import { updateExpenseRegistry } from './update-expense/registry';
@@ -26,18 +30,7 @@ import { updateRevenue } from './update-revenue/implementation';
 import { updateRevenueRegistry } from './update-revenue/registry';
 import type { ToolContext } from './types';
 
-export function chatTools(
-  farmId: string,
-  now: Date,
-  financial: FinancialService,
-  farms: FarmService,
-) {
-  const context: ToolContext = {
-    farmId,
-    now,
-    financial,
-    farms,
-  };
+export function chatTools(context: ToolContext) {
   return {
     getFarm: tool({ ...getFarmRegistry, execute: () => getFarm(context) }),
     updateFarm: tool({
@@ -79,6 +72,19 @@ export function chatTools(
     getFinancialSummary: tool({
       ...getFinancialSummaryRegistry,
       execute: (input) => getFinancialSummary(context, input),
+    }),
+    getCattleOverview: tool({
+      ...getCattleOverviewRegistry,
+      execute: () => getCattleOverview(context),
+    }),
+    createCattleLot: tool({
+      ...createCattleLotRegistry,
+      execute: (input) => createCattleLot(context, input),
+    }),
+    moveCattleLot: tool({
+      ...moveCattleLotRegistry,
+      execute: (input, { toolCallId }) =>
+        moveCattleLot(context, input, toolCallId),
     }),
     showManualForm: tool(showManualFormRegistry),
   };

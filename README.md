@@ -35,6 +35,27 @@ e a origem (`PADDOCK`, `FARM` ou `SYSTEM`), e a tela mostra essa origem. Essa
 primeira colocação só abre `PaddockOccupancy`: movimentações e eventos de
 domínio começam no ticket 07.
 
+### Movimentação pelo chat
+
+O produtor pode pedir a movimentação em voz corrente ("passa o lote 12 pro pasto
+6"). O agente resolve os nomes com `getCattleOverview`, e a tool `moveCattleLot`
+só executa depois da aprovação explícita — se o nome couber em mais de um lote,
+ou em nenhum, ele pergunta em vez de escolher.
+
+Antes de confirmar, o chat mostra o que vai mudar: cabeças, pasto de origem,
+pasto de destino e os avisos que as regras realmente produzem, como o destino
+passar da lotação configurada. Essa prévia vem de `POST /cattle/movements/preview`,
+que roda as mesmas invariantes (`assertMovementInvariants`) e os mesmos
+avaliadores de `MOVEMENT_RULES` do comando, sem gravar nada — por isso a prévia e
+o comando não podem discordar. Aprovar executa por `CattleService.moveLot`, o
+mesmo caminho da tela manual, com `source: AGENT` e a chamada de tool aprovada
+como chave de idempotência. Recusar não grava absolutamente nada.
+
+`createCattleLot` também existe no chat e também passa por confirmação; o lote
+nasce sem pasto. Desenhar ou editar o contorno de um pasto continua fora do
+chat: é um ato espacial e um pasto sem contorno quebraria o mapa e as regras que
+dividem por área.
+
 ## Scripts da raiz
 
 | script | o que faz |

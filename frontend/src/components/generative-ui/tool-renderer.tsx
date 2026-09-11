@@ -2,7 +2,9 @@ import { ConfirmationCard } from "./confirmation-card/confirmation-card";
 import { ExpenseChart } from "./expense-chart/expense-chart";
 import { ExpenseTable } from "./expense-table/expense-table";
 import { FinancialSummary } from "./financial-summary/financial-summary";
+import { LotConfirmation } from "./lot-confirmation/lot-confirmation";
 import { ManualForm } from "./manual-form/manual-form";
+import { MovementConfirmation } from "./movement-confirmation/movement-confirmation";
 import { RevenueChart } from "./revenue-chart/revenue-chart";
 import styles from "./tool-renderer.module.scss";
 import type {
@@ -54,6 +56,12 @@ export function ToolRenderer({
       );
     case "tool-deleteExpense":
       return <ConfirmationCard part={part} onResolve={actions.approve} />;
+    case "tool-moveCattleLot":
+      return <MovementConfirmation part={part} onResolve={actions.approve} />;
+    case "tool-createCattleLot":
+      return <LotConfirmation part={part} onResolve={actions.approve} />;
+    case "tool-getCattleOverview":
+      return null;
     case "tool-showManualForm":
       return (
         <ManualForm

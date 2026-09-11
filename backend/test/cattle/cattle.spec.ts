@@ -15,6 +15,19 @@ type CreatedPaddock = {
     stockingRateHeadPerHa: { value: string | null; source: string };
   };
 };
+type MovementPreviewResponse = {
+  lot: { id: string; name: string; headCount: number };
+  fromPaddock: { id: string; name: string };
+  toPaddock: { id: string; name: string };
+  headCount: number;
+  destination: {
+    headCountAfter: number | null;
+    capacity: number | null;
+    capacitySource: string;
+    utilizationPercent: number | null;
+  };
+  warnings: { ruleId: string; severity: string; message: string }[];
+};
 type MovementResponse = {
   movement: {
     lot: { id: string };
@@ -344,6 +357,112 @@ describe('cattle and paddock management', () => {
     expect(
       testApp.repositories.cattle.findOpenOccupancy(SEED_IDS.lots.recria),
     ).toEqual(expect.objectContaining({ paddockId: SEED_IDS.areas.pasto4 }));
+  });
+
+  it('previews the movement in words, with the rules real warnings and no writes', async () => {
+    const preview = await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/movements/preview')
+      .send({
+        lotId: SEED_IDS.lots.recria,
+        fromPaddockId: SEED_IDS.areas.pasto4,
+        toPaddockId: SEED_IDS.areas.pasto6,
+        occurredAt: '2026-03-16T12:00:00.000Z',
+      })
+      .expect(200);
+
+    const body = preview.body as MovementPreviewResponse;
+    expect(body.lot).toEqual({
+      id: SEED_IDS.lots.recria,
+      name: 'Lote 12',
+      headCount: 180,
+    });
+    expect(body.fromPaddock.name).toBe('Pasto 4');
+    expect(body.toPaddock.name).toBe('Pasto 6');
+    expect(body.headCount).toBe(180);
+    expect(body.destination).toEqual(
+      expect.objectContaining({
+        headCountAfter: 180,
+        capacity: 88.2,
+        capacitySource: 'FARM',
+      }),
+    );
+    expect(body.warnings).toContainEqual({
+      ruleId: 'paddock.stocking_level',
+      severity: 'WARNING',
+      message:
+        'Pasto 6 fica com 180 cabeças, acima da lotação de 88 (padrão da fazenda).',
+    });
+
+    expect(testApp.repositories.cattle.listMovements()).toHaveLength(0);
+    expect(testApp.repositories.cattle.listDomainEvents()).toHaveLength(0);
+    expect(testApp.repositories.cattle.listOutboxMessages()).toHaveLength(0);
+    expect(testApp.repositories.cattle.listIdempotencyKeys()).toHaveLength(0);
+    expect(
+      testApp.repositories.cattle.findOpenOccupancy(SEED_IDS.lots.recria),
+    ).toEqual(expect.objectContaining({ paddockId: SEED_IDS.areas.pasto4 }));
+  });
+
+  it.each([
+    ['movement.lot_exists', { lotId: SEED_IDS.lots.boaVistaNelore }],
+    [
+      'movement.source_matches_current_location',
+      { fromPaddockId: SEED_IDS.areas.pasto5 },
+    ],
+    [
+      'movement.destination_is_different',
+      { toPaddockId: SEED_IDS.areas.pasto4 },
+    ],
+  ])(
+    'refuses to preview what the command would refuse: %s',
+    async (check, changes) => {
+      await testApp
+        .as(SEED_IDS.users.joao)
+        .post('/cattle/movements/preview')
+        .send({
+          lotId: SEED_IDS.lots.recria,
+          fromPaddockId: SEED_IDS.areas.pasto4,
+          toPaddockId: SEED_IDS.areas.pasto6,
+          occurredAt: '2026-03-16T12:00:00.000Z',
+          ...changes,
+        })
+        .expect(409)
+        .expect(({ body }) =>
+          expect((body as { check: string }).check).toBe(check),
+        );
+    },
+  );
+
+  it('previews the same destination load the rule engine sees after the movement', async () => {
+    const command = {
+      lotId: SEED_IDS.lots.bezerros,
+      fromPaddockId: SEED_IDS.areas.pasto5,
+      toPaddockId: SEED_IDS.areas.pasto6,
+      occurredAt: '2026-03-16T12:00:00.000Z',
+    };
+
+    const preview = await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/movements/preview')
+      .send(command)
+      .expect(200);
+
+    await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/movements')
+      .send({ ...command, idempotencyKey: 'preview-then-command' })
+      .expect(201);
+
+    const occupancies = testApp.repositories.cattle.listOccupancies(
+      SEED_IDS.areas.pasto6,
+    );
+    const openAfterMove = occupancies.filter(
+      (occupancy) => occupancy.endedAt === null,
+    );
+    expect(openAfterMove).toHaveLength(1);
+    expect(
+      (preview.body as MovementPreviewResponse).destination.headCountAfter,
+    ).toBe(96);
   });
 
   it('uses one strict command schema for HTTP and derives the agent schema without farmId', async () => {

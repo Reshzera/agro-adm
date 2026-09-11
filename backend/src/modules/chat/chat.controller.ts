@@ -67,7 +67,11 @@ export class ChatController {
     @Req() request: RequestWithFarmContext,
     @Res() response: Response,
   ): Promise<void> {
-    const stream = await this.chat.stream(request.farmId!, body);
+    const stream = await this.chat.stream(
+      request.farmId!,
+      request.user!.id,
+      body,
+    );
     await pipeUIMessageStreamToResponse({ response, stream });
   }
 }

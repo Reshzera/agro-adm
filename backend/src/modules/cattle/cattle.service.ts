@@ -11,7 +11,9 @@ import { OutboxProcessor } from '../outbox/outbox.processor';
 import {
   type MoveCattleLotCommand,
   parseMoveCattleLotCommand,
+  parseMoveCattleLotIntent,
 } from './commands/move-cattle-lot.command';
+import { assertMovementInvariants } from './commands/move-cattle-lot.invariants';
 import type { CreateCattleLotDto } from './dto/create-cattle-lot.dto';
 import type { CreatePaddockDto } from './dto/create-paddock.dto';
 import type { UpdateCattleLotDto } from './dto/update-cattle-lot.dto';
@@ -20,6 +22,34 @@ import { CattleResourceNotFoundError } from './errors/cattle-resource-not-found.
 import { CattleMovementInvariantError } from './errors/cattle-movement-invariant.error';
 import { InvalidCattleOperationError } from './errors/invalid-cattle-operation.error';
 import { CattleRepository } from './cattle.repository';
+import { RuleEngineService } from '../rule-engine/rule-engine.service';
+import {
+  presentMovementPreview,
+  type MovementPreview,
+} from './movement-preview';
+
+export type CattleMovementResult = {
+  movement: {
+    id: string;
+    lot: { id: string; name: string; headCount: number };
+    fromPaddock: { id: string; name: string };
+    toPaddock: { id: string; name: string };
+    occurredAt: string;
+    recordedAt: string;
+    reason: string | null;
+    notes: string | null;
+  };
+  occupancy: { id: string; startedAt: string };
+  event: {
+    id: string;
+    eventType: string;
+    correlationId: string;
+    causationId: string | null;
+    occurredAt: string;
+    recordedAt: string;
+  };
+  outbox: { id: string; status: string };
+};
 
 @Injectable()
 export class CattleService {
@@ -27,6 +57,7 @@ export class CattleService {
     private readonly repository: CattleRepository,
     private readonly db: DatabaseService,
     private readonly outbox: OutboxProcessor,
+    private readonly rules: RuleEngineService,
   ) {}
 
   async listLots(farmId: string) {
@@ -167,13 +198,74 @@ export class CattleService {
     });
   }
 
+  async previewMove(
+    farmId: string,
+    rawInput: unknown,
+    evaluatedAt = new Date(),
+  ): Promise<MovementPreview> {
+    const input = parseMoveCattleLotIntent(rawInput);
+    const [found, foundDestination, openOccupancy, defaults] =
+      await Promise.all([
+        this.repository.findLotForMovement(farmId, input.lotId),
+        this.repository.findDestinationForMovement(farmId, input.toPaddockId),
+        this.repository.findOpenOccupancyForMovement(farmId, input.lotId),
+        this.repository.farmDefaults(farmId),
+      ]);
+
+    const { lot, destination, current } = assertMovementInvariants(input, {
+      lot: found,
+      destination: foundDestination,
+      current: openOccupancy,
+    });
+    const occurredAt = new Date(input.occurredAt);
+
+    const [occupyingHead, previousOccupancyEndedAt] = await Promise.all([
+      this.repository.headCountInPaddock(farmId, destination.id, occurredAt),
+      this.repository.lastOccupancyEndBefore(
+        farmId,
+        destination.id,
+        occurredAt,
+      ),
+    ]);
+
+    const evaluations = this.rules.preview({
+      lotId: lot.id,
+      occurredAt,
+      evaluatedAt,
+      destination: {
+        id: destination.id,
+        usableAreaHa: this.decimal(destination.usableAreaHa),
+        plannedCapacityHead: destination.plannedCapacityHead,
+        maxGrazingDays: destination.maxGrazingDays,
+        minRestDays: destination.minRestDays,
+      },
+      farmDefaults: {
+        maxGrazingDays: defaults?.defaultMaxGrazingDays ?? null,
+        minRestDays: defaults?.defaultMinRestDays ?? null,
+        stockingRateHeadPerHa: this.decimal(
+          defaults?.defaultStockingRateHeadPerHa,
+        ),
+      },
+      currentHeadCount: occupyingHead + lot.headCount,
+      previousOccupancyEndedAt,
+    });
+
+    return presentMovementPreview({
+      lot: { id: lot.id, name: lot.name, headCount: lot.headCount },
+      from: current.paddock,
+      to: { id: destination.id, name: destination.name },
+      occurredAt,
+      evaluations,
+    });
+  }
+
   async moveLot(
     farmId: string,
     actorId: string,
     rawInput: unknown,
     source: DomainEventSource = DomainEventSource.WEB,
     actorType: ActorType = ActorType.USER,
-  ) {
+  ): Promise<CattleMovementResult> {
     const input = parseMoveCattleLotCommand(rawInput);
     const requestHash = this.movementRequestHash(input);
 
@@ -189,63 +281,27 @@ export class CattleService {
             'This idempotency key was already used for a different movement.',
           );
         }
-        if (replay.completedAt && replay.result) return replay.result;
+        if (replay.completedAt && replay.result) {
+          return replay.result as unknown as CattleMovementResult;
+        }
         throw new CattleMovementInvariantError(
           'movement.concurrent_change',
           'This movement is already being processed.',
         );
       }
 
-      const [lot, destination, current] = await Promise.all([
+      const [found, foundDestination, openOccupancy] = await Promise.all([
         this.repository.findLotForMovement(farmId, input.lotId),
         this.repository.findDestinationForMovement(farmId, input.toPaddockId),
         this.repository.findOpenOccupancyForMovement(farmId, input.lotId),
       ]);
 
-      if (!lot) {
-        throw new CattleMovementInvariantError(
-          'movement.lot_exists',
-          'The cattle lot does not exist in this farm.',
-        );
-      }
-      if (!lot.active) {
-        throw new CattleMovementInvariantError(
-          'movement.lot_active',
-          'An inactive cattle lot cannot be moved.',
-        );
-      }
-      if (!destination) {
-        throw new CattleMovementInvariantError(
-          'movement.destination_exists',
-          'The destination paddock does not exist in this farm.',
-        );
-      }
-      if (!destination.active) {
-        throw new CattleMovementInvariantError(
-          'movement.destination_active',
-          'The destination paddock is inactive.',
-        );
-      }
-      if (!current || current.paddockId !== input.fromPaddockId) {
-        throw new CattleMovementInvariantError(
-          'movement.source_matches_current_location',
-          'The stated origin does not match the lot current occupancy.',
-        );
-      }
-      if (current.paddockId === destination.id) {
-        throw new CattleMovementInvariantError(
-          'movement.destination_is_different',
-          'The destination must be different from the current paddock.',
-        );
-      }
-
+      const { lot, destination, current } = assertMovementInvariants(input, {
+        lot: found,
+        destination: foundDestination,
+        current: openOccupancy,
+      });
       const occurredAt = new Date(input.occurredAt);
-      if (occurredAt < current.startedAt) {
-        throw new CattleMovementInvariantError(
-          'movement.occurred_after_occupancy_started',
-          'The movement cannot occur before the current occupancy started.',
-        );
-      }
 
       // No write occurs before every business invariant above has passed.
       const idempotency = await this.repository.createMovementIdempotency(
@@ -337,18 +393,20 @@ export class CattleService {
           recordedAt: event.recordedAt.toISOString(),
         },
         outbox: { id: event.outbox!.id, status: event.outbox!.status },
-      } satisfies Prisma.InputJsonObject;
+      } satisfies CattleMovementResult & Prisma.InputJsonObject;
 
       await this.repository.completeMovementIdempotency(idempotency.id, result);
       return result;
     });
-    const resultObject = result as Prisma.JsonObject;
-    const outbox = resultObject.outbox as Prisma.JsonObject;
-    if (typeof outbox.id === 'string') this.outbox.dispatch(outbox.id);
+    this.outbox.dispatch(result.outbox.id);
     return result;
   }
 
-  private presentLot<T extends { occupancies: unknown[] }>(lot: T) {
+  private presentLot<T extends { occupancies: unknown[] }>(
+    lot: T,
+  ): Omit<T, 'occupancies'> & {
+    currentOccupancy: T['occupancies'][number] | null;
+  } {
     const { occupancies, ...fields } = lot;
     return { ...fields, currentOccupancy: occupancies[0] ?? null };
   }
@@ -411,6 +469,12 @@ export class CattleService {
     if (Object.values(input).every((value) => value === undefined)) {
       throw new InvalidCattleOperationError('At least one field must change.');
     }
+  }
+
+  private decimal(
+    value: { toString(): string } | null | undefined,
+  ): number | null {
+    return value == null ? null : Number(value.toString());
   }
 
   private dateOnly(value: string): Date {

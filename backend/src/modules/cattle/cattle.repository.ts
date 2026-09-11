@@ -165,8 +165,38 @@ export class CattleRepository {
   findDestinationForMovement(farmId: string, id: string) {
     return this.db.client.farmArea.findFirst({
       where: { farmId, id, type: FarmAreaType.PASTURE },
-      select: { id: true, name: true, active: true },
+      select: {
+        id: true,
+        name: true,
+        active: true,
+        usableAreaHa: true,
+        plannedCapacityHead: true,
+        maxGrazingDays: true,
+        minRestDays: true,
+      },
     });
+  }
+
+  async headCountInPaddock(farmId: string, paddockId: string, at: Date) {
+    const occupancies = await this.db.client.paddockOccupancy.findMany({
+      where: {
+        farmId,
+        paddockId,
+        startedAt: { lte: at },
+        OR: [{ endedAt: null }, { endedAt: { gt: at } }],
+      },
+      select: { lot: { select: { headCount: true } } },
+    });
+    return occupancies.reduce((total, item) => total + item.lot.headCount, 0);
+  }
+
+  async lastOccupancyEndBefore(farmId: string, paddockId: string, at: Date) {
+    const previous = await this.db.client.paddockOccupancy.findFirst({
+      where: { farmId, paddockId, endedAt: { lte: at } },
+      orderBy: { endedAt: 'desc' },
+      select: { endedAt: true },
+    });
+    return previous?.endedAt ?? null;
   }
 
   findOpenOccupancyForMovement(farmId: string, lotId: string) {

@@ -5,7 +5,7 @@ import {
 } from '@prisma/client';
 import type {
   FarmRule,
-  MovementRuleContext,
+  MovementFacts,
   RuleResult,
   ThresholdSource,
 } from './rule.types';
@@ -33,7 +33,7 @@ export class PaddockStockingLevelRule implements FarmRule {
     titleCode: 'attention.paddock_stocking_level',
   };
 
-  evaluate(context: MovementRuleContext): RuleResult {
+  evaluate(context: MovementFacts): RuleResult {
     const configuredHead = context.destination.plannedCapacityHead;
     const stockingRate = context.farmDefaults.stockingRateHeadPerHa;
     const area = context.destination.usableAreaHa;
@@ -106,7 +106,7 @@ export class PaddockRestPeriodRule implements FarmRule {
     titleCode: 'attention.paddock_rest_period',
   };
 
-  evaluate(context: MovementRuleContext): RuleResult {
+  evaluate(context: MovementFacts): RuleResult {
     const applied = threshold(
       context.destination.minRestDays,
       context.farmDefaults.minRestDays,
@@ -168,7 +168,7 @@ export class GrazingReviewDueRule implements FarmRule {
     titleCode: 'attention.grazing_review_due',
   };
 
-  evaluate(context: MovementRuleContext): RuleResult {
+  evaluate(context: MovementFacts): RuleResult {
     const applied = threshold(
       context.destination.maxGrazingDays,
       context.farmDefaults.maxGrazingDays,

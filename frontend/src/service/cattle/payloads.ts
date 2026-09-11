@@ -30,3 +30,5 @@ export type CattleMovementPayload = {
   notes?: string | null;
   idempotencyKey: string;
 };
+
+export type CattleMovementIntent = Omit<CattleMovementPayload, "idempotencyKey">;

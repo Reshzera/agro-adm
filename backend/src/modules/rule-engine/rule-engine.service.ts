@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AttentionService } from '../attention/attention.service';
 import { MOVEMENT_RULES } from './rule.registry';
 import { RuleEngineRepository } from './rule-engine.repository';
+import type { MovementFacts, RulePreview } from './rule.types';
 
 @Injectable()
 export class RuleEngineService {
@@ -9,6 +10,14 @@ export class RuleEngineService {
     private readonly repository: RuleEngineRepository,
     private readonly attention: AttentionService,
   ) {}
+
+  preview(facts: MovementFacts): RulePreview[] {
+    return MOVEMENT_RULES.map((rule) => ({
+      ruleId: rule.ruleId,
+      ruleVersion: rule.ruleVersion,
+      ...rule.evaluate(facts),
+    }));
+  }
 
   async handle(eventId: string, evaluatedAt = new Date()): Promise<boolean> {
     const context = await this.repository.loadMovementContext(

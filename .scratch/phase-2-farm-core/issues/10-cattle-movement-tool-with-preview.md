@@ -8,13 +8,13 @@ Creating a lot is included, because it is genuinely voice-shaped work. Editing p
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** implemented
 
-- [ ] A natural-language request to move a named lot to a named paddock resolves both names and selects the movement tool
-- [ ] The tool requires explicit approval before it executes
-- [ ] The confirmation shows head count, origin, destination and the rules' actual warnings — not raw arguments
-- [ ] The preview uses the same invariants and rule evaluators as the command and writes nothing
-- [ ] Approving executes through the same command path as the manual screen; declining writes nothing at all
-- [ ] Creating a cattle lot is available to the agent and also requires confirmation
-- [ ] An ambiguous request — a lot name matching more than one lot, or none — asks rather than picking one
-- [ ] No new tool accepts a farm identifier
+- [x] A natural-language request to move a named lot to a named paddock resolves both names and selects the movement tool
+- [x] The tool requires explicit approval before it executes
+- [x] The confirmation shows head count, origin, destination and the rules' actual warnings — not raw arguments
+- [x] The preview uses the same invariants and rule evaluators as the command and writes nothing
+- [x] Approving executes through the same command path as the manual screen; declining writes nothing at all
+- [x] Creating a cattle lot is available to the agent and also requires confirmation
+- [x] An ambiguous request — a lot name matching more than one lot, or none — asks rather than picking one
+- [x] No new tool accepts a farm identifier

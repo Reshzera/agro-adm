@@ -65,3 +65,18 @@ export type CattleMovementResult = {
     causationId: string | null;
   };
 };
+
+export type MovementPreview = {
+  lot: { id: string; name: string; headCount: number };
+  fromPaddock: { id: string; name: string };
+  toPaddock: { id: string; name: string };
+  occurredAt: string;
+  headCount: number;
+  destination: {
+    headCountAfter: number | null;
+    capacity: number | null;
+    capacitySource: SettingSource | "UNCONFIGURED";
+    utilizationPercent: number | null;
+  };
+  warnings: { ruleId: string; severity: string; message: string }[];
+};

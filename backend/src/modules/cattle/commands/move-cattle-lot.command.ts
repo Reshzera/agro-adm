@@ -23,17 +23,18 @@ export const moveCattleLotCommandSchema = z
 
 export type MoveCattleLotCommand = z.infer<typeof moveCattleLotCommandSchema>;
 
-// Ticket 10 adds execution/approval. Its agent input is derived here so it can
-// never drift from the business command or gain a caller-controlled farmId.
+// The agent input is derived here so it can never drift from the business
+// command or gain a caller-controlled farmId. It is also what a preview needs:
+// nothing is written, so there is no idempotency key to carry.
 export const moveCattleLotAgentInputSchema = moveCattleLotCommandSchema.omit({
   idempotencyKey: true,
   causationId: true,
 });
 
-export function parseMoveCattleLotCommand(
-  input: unknown,
-): MoveCattleLotCommand {
-  const parsed = moveCattleLotCommandSchema.safeParse(input);
+export type MoveCattleLotIntent = z.infer<typeof moveCattleLotAgentInputSchema>;
+
+function parse<T>(schema: z.ZodType<T>, input: unknown): T {
+  const parsed = schema.safeParse(input);
   if (parsed.success) return parsed.data;
 
   throw new BadRequestException({
@@ -41,4 +42,14 @@ export function parseMoveCattleLotCommand(
     error: 'Invalid cattle movement command',
     statusCode: 400,
   });
+}
+
+export function parseMoveCattleLotCommand(
+  input: unknown,
+): MoveCattleLotCommand {
+  return parse(moveCattleLotCommandSchema, input);
+}
+
+export function parseMoveCattleLotIntent(input: unknown): MoveCattleLotIntent {
+  return parse(moveCattleLotAgentInputSchema, input);
 }

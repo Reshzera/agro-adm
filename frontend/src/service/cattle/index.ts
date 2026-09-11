@@ -1,7 +1,17 @@
 import type { AxiosResponse } from "axios";
 import { client } from "../client";
-import type { CattleLotPayload, CattleMovementPayload, PaddockPayload } from "./payloads";
-import type { CattleLot, CattleMovementResult, Paddock } from "./responses";
+import type {
+  CattleLotPayload,
+  CattleMovementIntent,
+  CattleMovementPayload,
+  PaddockPayload,
+} from "./payloads";
+import type {
+  CattleLot,
+  CattleMovementResult,
+  MovementPreview,
+  Paddock,
+} from "./responses";
 
 export const cattleEndpoints = {
   lots: (signal?: AbortSignal): Promise<AxiosResponse<CattleLot[]>> =>
@@ -33,4 +43,9 @@ export const cattleEndpoints = {
     payload: CattleMovementPayload,
   ): Promise<AxiosResponse<CattleMovementResult>> =>
     client.post("/cattle/movements", payload),
+  previewMovement: (
+    payload: CattleMovementIntent,
+    signal?: AbortSignal,
+  ): Promise<AxiosResponse<MovementPreview>> =>
+    client.post("/cattle/movements/preview", payload, { signal }),
 };

@@ -10,6 +10,7 @@ import {
 import { randomUUID } from 'node:crypto';
 import { AiService } from '../ai/ai.service';
 import { agentStopWhen } from './agent-loop';
+import { CattleService } from '../cattle/cattle.service';
 import { FinancialService } from '../financial/financial.service';
 import { FarmService } from '../farm/farm.service';
 import { chatTools } from './tools';
@@ -75,6 +76,10 @@ export function systemPrompt(farm: FarmAgentContext, now: Date): string {
     `Onboarding concluído: ${farm.onboardingCompleted ? 'sim' : 'não'}.`,
     `Contexto do produtor:\n${farm.agentContext ?? 'não informado'}`,
     `Áreas cadastradas (id, nome e tipo):\n${areas || 'nenhuma'}`,
+    'Rebanho: para mover um lote ou saber onde ele está, chame getCattleOverview e use os identificadores devolvidos. Nunca invente um id nem deduza um pasto que não apareça ali.',
+    'Se o nome dito pelo produtor corresponder a mais de um lote ou pasto, ou a nenhum, pergunte qual é antes de seguir. Escolher por conta própria não é aceitável.',
+    'moveCattleLot precisa do lote, do pasto atual como fromPaddockId e do pasto de destino. O produtor confirma o movimento em uma ficha própria, que mostra as cabeças, a origem, o destino e os avisos das regras; não repita esses dados como pergunta de confirmação antes de chamar a tool.',
+    'createCattleLot cria o lote sem colocá-lo em nenhum pasto e também passa por confirmação. Desenhar ou editar o contorno de um pasto não é tarefa do chat: oriente o produtor a usar a tela de rebanho.',
     ...onboarding,
   ].join('\n\n');
 }
@@ -84,6 +89,7 @@ function toMessageToStore(message: UIMessage): MessageToStore {
 }
 
 function readStoredMessages(messages: StoredMessage[]): Promise<UIMessage[]> {
+  if (messages.length === 0) return Promise.resolve([]);
   return validateUIMessages({ messages });
 }
 
@@ -94,6 +100,7 @@ export class ChatService {
     private readonly ai: AiService,
     private readonly financial: FinancialService,
     private readonly farms: FarmService,
+    private readonly cattle: CattleService,
   ) {}
 
   list(farmId: string) {
@@ -120,7 +127,7 @@ export class ChatService {
     return readStoredMessages(chat.messages);
   }
 
-  async stream(farmId: string, input: ChatInput) {
+  async stream(farmId: string, actorId: string, input: ChatInput) {
     let chat = await this.repository.findForFarm(input.id, farmId);
     if (!chat) chat = await this.repository.create(input.id, farmId);
 
@@ -137,7 +144,14 @@ export class ChatService {
       model: this.ai.model,
       system: systemPrompt(farm, this.ai.now()),
       messages: await convertToModelMessages(messages),
-      tools: chatTools(farmId, this.ai.now(), this.financial, this.farms),
+      tools: chatTools({
+        farmId,
+        actorId,
+        now: this.ai.now(),
+        financial: this.financial,
+        farms: this.farms,
+        cattle: this.cattle,
+      }),
       stopWhen: agentStopWhen(),
     });
 

@@ -35,3 +35,16 @@ export function categoryLabel(value: string): string {
 }
 
 export const expenseCategories = Object.entries(categoryLabels)
+
+const cattleCategoryLabels: Record<string, string> = {
+  CALVES: 'Bezerros',
+  HEIFERS: 'Novilhas',
+  COWS: 'Vacas',
+  BULLS: 'Touros',
+  STEERS: 'Garrotes / bois',
+  FINISHING: 'Terminação',
+}
+
+export function cattleCategoryLabel(value: string): string {
+  return cattleCategoryLabels[value] ?? value.replaceAll('_', ' ').toLocaleLowerCase('pt-BR')
+}

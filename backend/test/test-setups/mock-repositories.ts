@@ -454,8 +454,40 @@ export function createMockRepositories() {
     findDestinationForMovement: jest.fn((farmId: string, id: string) => {
       const paddock = paddocks.get(id);
       if (!paddock || paddock.farmId !== farmId) return null;
-      return { id: paddock.id, name: paddock.name, active: paddock.active };
+      return {
+        id: paddock.id,
+        name: paddock.name,
+        active: paddock.active,
+        usableAreaHa: paddock.usableAreaHa,
+        plannedCapacityHead: paddock.plannedCapacityHead,
+        maxGrazingDays: paddock.maxGrazingDays,
+        minRestDays: paddock.minRestDays,
+      };
     }),
+    headCountInPaddock: jest.fn((farmId: string, paddockId: string, at: Date) =>
+      [...occupancies.values()]
+        .filter(
+          (item) =>
+            item.farmId === farmId &&
+            item.paddockId === paddockId &&
+            item.startedAt <= at &&
+            (!item.endedAt || item.endedAt > at),
+        )
+        .reduce((total, item) => total + lots.get(item.lotId)!.headCount, 0),
+    ),
+    lastOccupancyEndBefore: jest.fn(
+      (farmId: string, paddockId: string, at: Date) =>
+        [...occupancies.values()]
+          .filter(
+            (item) =>
+              item.farmId === farmId &&
+              item.paddockId === paddockId &&
+              item.endedAt !== null &&
+              item.endedAt <= at,
+          )
+          .sort((left, right) => +right.endedAt! - +left.endedAt!)[0]
+          ?.endedAt ?? null,
+    ),
     findOpenOccupancyForMovement: jest.fn((farmId: string, lotId: string) => {
       const item = [...occupancies.values()].find(
         (occupancy) =>
@@ -853,6 +885,8 @@ export function createMockRepositories() {
     cattle.createMovementIdempotency.mockClear();
     cattle.findLotForMovement.mockClear();
     cattle.findDestinationForMovement.mockClear();
+    cattle.headCountInPaddock.mockClear();
+    cattle.lastOccupancyEndBefore.mockClear();
     cattle.findOpenOccupancyForMovement.mockClear();
     cattle.createMovement.mockClear();
     cattle.openMovementOccupancy.mockClear();

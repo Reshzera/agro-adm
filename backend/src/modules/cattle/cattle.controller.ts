@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -63,6 +64,15 @@ export class CattleController {
   @Post('movements')
   moveLot(@Req() request: RequestWithFarmContext, @Body() body: unknown) {
     return this.cattle.moveLot(request.farmId!, request.user!.id, body);
+  }
+
+  @Post('movements/preview')
+  @HttpCode(200)
+  previewMovement(
+    @Req() request: RequestWithFarmContext,
+    @Body() body: unknown,
+  ) {
+    return this.cattle.previewMove(request.farmId!, body);
   }
 
   @Get('paddocks')

@@ -7,11 +7,8 @@ import type {
 
 export type ThresholdSource = 'PADDOCK' | 'FARM' | 'UNCONFIGURED';
 
-export type MovementRuleContext = {
-  farmId: string;
-  eventId: string;
+export type MovementFacts = {
   lotId: string;
-  correlationId: string;
   occurredAt: Date;
   evaluatedAt: Date;
   destination: {
@@ -28,6 +25,12 @@ export type MovementRuleContext = {
   };
   currentHeadCount: number;
   previousOccupancyEndedAt: Date | null;
+};
+
+export type MovementRuleContext = MovementFacts & {
+  farmId: string;
+  eventId: string;
+  correlationId: string;
 };
 
 export type RuleResult = {
@@ -48,5 +51,10 @@ export interface FarmRule {
     category: string;
     titleCode: string;
   };
-  evaluate(context: MovementRuleContext): RuleResult;
+  evaluate(facts: MovementFacts): RuleResult;
 }
+
+export type RulePreview = RuleResult & {
+  ruleId: string;
+  ruleVersion: number;
+};

@@ -1,4 +1,5 @@
-import { EntrySource, ExpenseCategory } from '@prisma/client';
+import { CattleCategory, EntrySource, ExpenseCategory } from '@prisma/client';
+import type { CattleService } from '../../src/modules/cattle/cattle.service';
 import type { FarmAgentContext } from '../../src/modules/chat/chat.repository';
 import { FarmRepository } from '../../src/modules/farm/farm.repository';
 import { FarmService } from '../../src/modules/farm/farm.service';
@@ -197,4 +198,80 @@ export function evalFarmService(farm: FarmAgentContext): FarmService {
   };
 
   return new FarmService(repository as unknown as FarmRepository);
+}
+
+const LOTS = [
+  {
+    id: SEED_IDS.lots.recria,
+    name: 'Lote 12',
+    category: CattleCategory.STEERS,
+    purpose: 'Recria',
+    headCount: 180,
+    active: true,
+    currentOccupancy: {
+      paddock: { id: SEED_IDS.areas.pasto4, name: 'Pasto 4' },
+    },
+  },
+  {
+    id: SEED_IDS.lots.bezerros,
+    name: 'Lote 8',
+    category: CattleCategory.CALVES,
+    purpose: 'Bezerros desmamados',
+    headCount: 96,
+    active: true,
+    currentOccupancy: {
+      paddock: { id: SEED_IDS.areas.pasto5, name: 'Pasto 5' },
+    },
+  },
+  {
+    id: SEED_IDS.lots.vacas,
+    name: 'Lote 3',
+    category: CattleCategory.COWS,
+    purpose: 'Vacas de cria',
+    headCount: 240,
+    active: true,
+    currentOccupancy: null,
+  },
+];
+
+const PADDOCKS = [
+  {
+    id: SEED_IDS.areas.pasto4,
+    name: 'Pasto 4',
+    active: true,
+    plannedCapacityHead: 120,
+    occupancies: [
+      { lot: { id: SEED_IDS.lots.recria, name: 'Lote 12', headCount: 180 } },
+    ],
+  },
+  {
+    id: SEED_IDS.areas.pasto5,
+    name: 'Pasto 5',
+    active: true,
+    plannedCapacityHead: null,
+    occupancies: [
+      { lot: { id: SEED_IDS.lots.bezerros, name: 'Lote 8', headCount: 96 } },
+    ],
+  },
+  {
+    id: SEED_IDS.areas.pasto6,
+    name: 'Pasto 6',
+    active: true,
+    plannedCapacityHead: null,
+    occupancies: [],
+  },
+];
+
+/** Only the read path runs in the eval: writes stay behind human approval. */
+export function evalCattleService(): CattleService {
+  const approvalOnly = () =>
+    Promise.reject(new Error('Cattle writes are not executed in the eval.'));
+
+  return {
+    listLots: () => Promise.resolve(LOTS),
+    listPaddocks: () => Promise.resolve(PADDOCKS),
+    createLot: approvalOnly,
+    moveLot: approvalOnly,
+    previewMove: approvalOnly,
+  } as unknown as CattleService;
 }

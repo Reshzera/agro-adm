@@ -1,11 +1,12 @@
 import { moveCattleLotAgentInputSchema } from '../../../cattle/commands/move-cattle-lot.command';
 
 /**
- * Ticket 10 will add preview, approval and execution. Defining the registry
- * from the command schema now makes schema drift impossible in that slice.
+ * Defining the registry from the command schema makes drift between what the
+ * model may ask for and what the command accepts impossible.
  */
 export const moveCattleLotRegistry = {
-  description: 'Move um lote de gado entre dois pastos.',
+  description:
+    'Move um lote de gado do pasto onde ele está para outro pasto, depois da confirmação explícita do produtor. Use os identificadores devolvidos por getCattleOverview; fromPaddockId precisa ser o pasto atual do lote.',
   inputSchema: moveCattleLotAgentInputSchema,
   needsApproval: true,
 };
