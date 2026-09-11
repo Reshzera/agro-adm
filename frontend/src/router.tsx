@@ -9,6 +9,7 @@ import { FarmSettingsPage } from './pages/settings/farm-settings.page'
 import { FinancialPage } from './pages/financial/financial.page'
 import { LandingPage } from './pages/landing/landing.page'
 import { VerifyEmailPage } from './pages/verify-email/verify-email.page'
+import { CattlePage } from './pages/cattle/cattle.page'
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,11 @@ export const router = createBrowserRouter([
         path: 'app/financeiro',
         loader: requireSession,
         element: <FinancialPage />,
+      },
+      {
+        path: 'app/rebanho',
+        loader: requireSession,
+        element: <CattlePage />,
       },
       { path: '*', element: <NotFoundPage /> },
     ],

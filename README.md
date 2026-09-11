@@ -22,6 +22,19 @@ yarn dev                      # backend em :3000, frontend em :5173
 `GET http://localhost:3000/health` responde `{ "status": "ok", "service": "backend" }`;
 o frontend consulta esse endpoint na home para mostrar se o backend está no ar.
 
+## Manejo de rebanho e pastos
+
+A área autenticada em `/app/rebanho` permite cadastrar e editar lotes e pastos,
+além de fazer a primeira colocação de um lote ainda sem histórico. A API fica
+sob `/cattle/lots` e `/cattle/paddocks`; todas as operações usam a fazenda da
+sessão e não aceitam IDs pertencentes a outra fazenda.
+
+Os limites de pastejo e descanso em branco no pasto herdam os padrões da
+fazenda. As respostas de pasto trazem `effectiveSettings` com o valor resolvido
+e a origem (`PADDOCK`, `FARM` ou `SYSTEM`), e a tela mostra essa origem. Essa
+primeira colocação só abre `PaddockOccupancy`: movimentações e eventos de
+domínio começam no ticket 07.
+
 ## Scripts da raiz
 
 | script | o que faz |

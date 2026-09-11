@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { AiModule } from './modules/ai/ai.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { CattleModule } from './modules/cattle/cattle.module';
 import { DatabaseModule } from './modules/database/database.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { FinancialModule } from './modules/financial/financial.module';
@@ -19,6 +20,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     DatabaseModule,
     AuthModule,
     ChatModule,
+    CattleModule,
     FarmModule,
     FinancialModule,
     ProfileModule,

@@ -6,11 +6,11 @@ A lot is identified by name, category and head count. It must be fully usable wi
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A producer can create, list and edit cattle lots, and create, list and edit paddocks including their management settings
-- [ ] A lot can be placed into a paddock for the first time, opening an occupancy
-- [ ] A lot with no individual animals behaves normally everywhere
-- [ ] Every read and write is scoped to the requesting user's farm; another farm's lot or paddock is not found
-- [ ] Leaving a management setting empty means the farm default applies, and the screen says so rather than showing a blank
-- [ ] No domain events are emitted in this ticket
+- [x] A producer can create, list and edit cattle lots, and create, list and edit paddocks including their management settings
+- [x] A lot can be placed into a paddock for the first time, opening an occupancy
+- [x] A lot with no individual animals behaves normally everywhere
+- [x] Every read and write is scoped to the requesting user's farm; another farm's lot or paddock is not found
+- [x] Leaving a management setting empty means the farm default applies, and the screen says so rather than showing a blank
+- [x] No domain events are emitted in this ticket

@@ -14,6 +14,7 @@ export function AppLayout() {
       {inApp && <nav aria-label="Navegação principal">
         <Link data-active={location.pathname === '/app'} to="/app">Conversas</Link>
         <Link data-active={location.pathname === '/app/financeiro'} to="/app/financeiro">Financeiro</Link>
+        <Link data-active={location.pathname === '/app/rebanho'} to="/app/rebanho">Rebanho</Link>
         <Link data-active={location.pathname === '/app/configuracoes'} to="/app/configuracoes">Configurações</Link>
       </nav>}
       {!inApp && location.pathname === '/' && <nav aria-label="Navegação pública">

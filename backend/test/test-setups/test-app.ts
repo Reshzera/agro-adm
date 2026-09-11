@@ -8,6 +8,7 @@ import { APPLICATION_OPTIONS, configureApp } from '../../src/bootstrap';
 import { AiService } from '../../src/modules/ai/ai.service';
 import { AuthRepository } from '../../src/modules/auth/auth.repository';
 import { ChatRepository } from '../../src/modules/chat/chat.repository';
+import { CattleRepository } from '../../src/modules/cattle/cattle.repository';
 import { PrismaService } from '../../src/modules/database/prisma.service';
 import { FarmRepository } from '../../src/modules/farm/farm.repository';
 import { FinancialRepository } from '../../src/modules/financial/financial.repository';
@@ -51,6 +52,8 @@ export async function createTestApp(): Promise<TestApp> {
     .useValue(repositories.auth)
     .overrideProvider(ChatRepository)
     .useValue(repositories.chat)
+    .overrideProvider(CattleRepository)
+    .useValue(repositories.cattle)
     .overrideProvider(FarmRepository)
     .useValue(repositories.farm)
     .overrideProvider(FinancialRepository)

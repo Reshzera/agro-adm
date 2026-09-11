@@ -4,7 +4,7 @@ import type {
   MessageToStore,
   StoredMessage,
 } from '../../src/modules/chat/chat.repository';
-import { CattleCategory, ChatSource } from '@prisma/client';
+import { CattleCategory, ChatSource, FarmAreaType } from '@prisma/client';
 
 type Profile = {
   id: string;
@@ -25,6 +25,9 @@ type Farm = {
   approximateAnimalCount: number | null;
   agentContext: string | null;
   onboardingCompleted: boolean;
+  defaultMaxGrazingDays: number | null;
+  defaultMinRestDays: number | null;
+  defaultStockingRateHeadPerHa: string | null;
 };
 
 type Lot = {
@@ -34,6 +37,22 @@ type Lot = {
   category: CattleCategory;
   purpose: string | null;
   headCount: number;
+  active: boolean;
+  startedOn?: Date | null;
+  notes?: string | null;
+};
+
+type Paddock = {
+  id: string;
+  farmId: string;
+  name: string;
+  type: FarmAreaType;
+  hectares: string | null;
+  usableAreaHa: string | null;
+  maxGrazingDays: number | null;
+  minRestDays: number | null;
+  plannedCapacityHead: number | null;
+  forageType: string | null;
   active: boolean;
 };
 
@@ -53,6 +72,7 @@ export function createMockRepositories() {
   let farms = new Map<string, Farm>();
   let expenses = new Map<string, { farmId: string }>();
   let lots = new Map<string, Lot>();
+  let paddocks = new Map<string, Paddock>();
   let occupancies = new Map<string, Occupancy>();
   let chats = new Map<
     string,
@@ -89,6 +109,9 @@ export function createMockRepositories() {
         approximateAnimalCount: null,
         agentContext: null,
         onboardingCompleted: false,
+        defaultMaxGrazingDays: null,
+        defaultMinRestDays: null,
+        defaultStockingRateHeadPerHa: null,
       });
     }),
     findFarmIdForUser: jest.fn((userId: string) => {
@@ -226,17 +249,131 @@ export function createMockRepositories() {
     }),
   };
 
+  const lotWithOccupancy = (lot: Lot) => ({
+    ...lot,
+    occupancies: [...occupancies.values()]
+      .filter((item) => item.lotId === lot.id && !item.endedAt)
+      .map((item) => ({
+        id: item.id,
+        startedAt: item.startedAt,
+        paddock: {
+          id: item.paddockId,
+          name: paddocks.get(item.paddockId)?.name ?? 'Pasto',
+        },
+      })),
+  });
+  const paddockWithOccupancies = (paddock: Paddock) => ({
+    ...paddock,
+    occupancies: [...occupancies.values()]
+      .filter((item) => item.paddockId === paddock.id && !item.endedAt)
+      .map((item) => {
+        const lot = lots.get(item.lotId)!;
+        return {
+          id: item.id,
+          startedAt: item.startedAt,
+          lot: { id: lot.id, name: lot.name, headCount: lot.headCount },
+        };
+      }),
+  });
+
   const cattle = {
     listLots: jest.fn((farmId: string) =>
       [...lots.values()]
-        .filter((lot) => lot.farmId === farmId && lot.active)
-        .sort((left, right) => left.name.localeCompare(right.name)),
+        .filter((lot) => lot.farmId === farmId)
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map(lotWithOccupancy),
     ),
-    findLot: jest.fn((id: string, farmId: string) => {
+    findLot: jest.fn((farmId: string, id: string) => {
       const lot = lots.get(id);
       if (!lot || lot.farmId !== farmId) return null;
-      return { ...lot };
+      return lotWithOccupancy(lot);
     }),
+    createLot: jest.fn((input: Lot) => {
+      const lot = {
+        ...input,
+        id: input.id ?? `lot-${lots.size + 1}`,
+        active: input.active ?? true,
+      };
+      lots.set(lot.id, lot);
+      return lotWithOccupancy(lot);
+    }),
+    updateLot: jest.fn((farmId: string, id: string, input: Partial<Lot>) => {
+      const lot = lots.get(id);
+      if (!lot || lot.farmId !== farmId) return null;
+      const updated = { ...lot, ...input };
+      lots.set(id, updated);
+      return lotWithOccupancy(updated);
+    }),
+    listPaddocks: jest.fn((farmId: string) =>
+      [...paddocks.values()]
+        .filter((paddock) => paddock.farmId === farmId)
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map(paddockWithOccupancies),
+    ),
+    findPaddock: jest.fn((farmId: string, id: string) => {
+      const paddock = paddocks.get(id);
+      return paddock?.farmId === farmId
+        ? paddockWithOccupancies(paddock)
+        : null;
+    }),
+    createPaddock: jest.fn((input: Paddock) => {
+      const paddock = {
+        ...input,
+        id: input.id ?? `paddock-${paddocks.size + 1}`,
+        active: input.active ?? true,
+        hectares: input.hectares ?? null,
+        usableAreaHa: input.usableAreaHa ?? null,
+        maxGrazingDays: input.maxGrazingDays ?? null,
+        minRestDays: input.minRestDays ?? null,
+        plannedCapacityHead: input.plannedCapacityHead ?? null,
+        forageType: input.forageType ?? null,
+      };
+      paddocks.set(paddock.id, paddock);
+      return paddockWithOccupancies(paddock);
+    }),
+    updatePaddock: jest.fn(
+      (farmId: string, id: string, input: Partial<Paddock>) => {
+        const paddock = paddocks.get(id);
+        if (!paddock || paddock.farmId !== farmId) return null;
+        const updated = { ...paddock, ...input };
+        paddocks.set(id, updated);
+        return paddockWithOccupancies(updated);
+      },
+    ),
+    farmDefaults: jest.fn((farmId: string) => {
+      const item = farms.get(farmId);
+      if (!item) return null;
+      return {
+        defaultMaxGrazingDays: item.defaultMaxGrazingDays,
+        defaultMinRestDays: item.defaultMinRestDays,
+        defaultStockingRateHeadPerHa:
+          item.defaultStockingRateHeadPerHa === null
+            ? null
+            : { toString: () => item.defaultStockingRateHeadPerHa! },
+      };
+    }),
+    countOccupancies: jest.fn(
+      (farmId: string, lotId: string) =>
+        [...occupancies.values()].filter(
+          (item) => item.farmId === farmId && item.lotId === lotId,
+        ).length,
+    ),
+    createInitialOccupancy: jest.fn(
+      (input: Omit<Occupancy, 'id' | 'endedAt'>) => {
+        const id = `occupancy-${occupancies.size + 1}`;
+        const item = { ...input, id, endedAt: null };
+        occupancies.set(id, item);
+        const lot = lots.get(input.lotId)!;
+        const paddock = paddocks.get(input.paddockId)!;
+        return {
+          id,
+          startedAt: input.startedAt,
+          endedAt: null,
+          lot: { id: lot.id, name: lot.name, headCount: lot.headCount },
+          paddock: { id: paddock.id, name: paddock.name },
+        };
+      },
+    ),
     findOpenOccupancy: jest.fn((lotId: string) => {
       const open = [...occupancies.values()].find(
         (item) => item.lotId === lotId && !item.endedAt,
@@ -302,6 +439,9 @@ export function createMockRepositories() {
           approximateAnimalCount: 920,
           agentContext: 'João é o gerente.',
           onboardingCompleted: true,
+          defaultMaxGrazingDays: 10,
+          defaultMinRestDays: 30,
+          defaultStockingRateHeadPerHa: '1.80',
         },
       ],
       [
@@ -317,6 +457,9 @@ export function createMockRepositories() {
           approximateAnimalCount: null,
           agentContext: null,
           onboardingCompleted: true,
+          defaultMaxGrazingDays: null,
+          defaultMinRestDays: null,
+          defaultStockingRateHeadPerHa: null,
         },
       ],
     ]);
@@ -366,6 +509,72 @@ export function createMockRepositories() {
           category: CattleCategory.HEIFERS,
           purpose: 'Novilhas de reposição',
           headCount: 64,
+          active: true,
+        },
+      ],
+    ]);
+    paddocks = new Map([
+      [
+        SEED_IDS.areas.pasto4,
+        {
+          id: SEED_IDS.areas.pasto4,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Pasto 4',
+          type: FarmAreaType.PASTURE,
+          hectares: '63.50',
+          usableAreaHa: '58.00',
+          maxGrazingDays: 10,
+          minRestDays: null,
+          plannedCapacityHead: 120,
+          forageType: 'Brachiária brizantha',
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.areas.pasto5,
+        {
+          id: SEED_IDS.areas.pasto5,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Pasto 5',
+          type: FarmAreaType.PASTURE,
+          hectares: '71.20',
+          usableAreaHa: '66.00',
+          maxGrazingDays: null,
+          minRestDays: 35,
+          plannedCapacityHead: null,
+          forageType: 'Mombaça',
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.areas.pasto6,
+        {
+          id: SEED_IDS.areas.pasto6,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Pasto 6',
+          type: FarmAreaType.PASTURE,
+          hectares: '52.80',
+          usableAreaHa: '49.00',
+          maxGrazingDays: null,
+          minRestDays: null,
+          plannedCapacityHead: null,
+          forageType: 'Brachiária brizantha',
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.areas.boaVistaPasto1,
+        {
+          id: SEED_IDS.areas.boaVistaPasto1,
+          farmId: SEED_IDS.farms.boaVista,
+          name: 'Pasto 1',
+          type: FarmAreaType.PASTURE,
+          hectares: '48.00',
+          usableAreaHa: '44.00',
+          maxGrazingDays: 12,
+          minRestDays: 28,
+          plannedCapacityHead: null,
+          forageType: 'Brachiária brizantha',
           active: true,
         },
       ],
@@ -480,6 +689,15 @@ export function createMockRepositories() {
     financial.deleteExpense.mockClear();
     cattle.listLots.mockClear();
     cattle.findLot.mockClear();
+    cattle.createLot.mockClear();
+    cattle.updateLot.mockClear();
+    cattle.listPaddocks.mockClear();
+    cattle.findPaddock.mockClear();
+    cattle.createPaddock.mockClear();
+    cattle.updatePaddock.mockClear();
+    cattle.farmDefaults.mockClear();
+    cattle.countOccupancies.mockClear();
+    cattle.createInitialOccupancy.mockClear();
     cattle.findOpenOccupancy.mockClear();
     cattle.listOccupancies.mockClear();
     cattle.openOccupancy.mockClear();
