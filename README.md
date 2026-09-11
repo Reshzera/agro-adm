@@ -104,6 +104,16 @@ bloco `datasource`: a URL vive em `backend/prisma.config.ts` (que carrega o
 adapter `@prisma/adapter-pg` construído com ela. Quem instanciar `PrismaClient`
 sem adapter toma erro em runtime — use o `PrismaService`.
 
+**Repositório não guarda conexão.** Todo repositório injeta o `DatabaseService`
+(`backend/src/modules/database/database.service.ts`) e pega o client por
+chamada, em `this.db.client`. Fora de transação isso é o próprio
+`PrismaService`; dentro de `db.transaction(...)` é o client da transação aberta,
+propagado por `AsyncLocalStorage`. É assim que uma operação de negócio escreve
+em vários repositórios e volta atrás junto — o que o movimento de gado do
+ticket 07 exige. `db.transaction` aninhado entra na transação de fora em vez de
+abrir outra. O `AuthRepository` fica de fora: ele usa o `PrismaClient` próprio
+do BetterAuth, em outra conexão.
+
 **Nem toda coluna `jsonb` tem validação.** `Message.parts` já passa por
 `validateUIMessages` na leitura do `ChatService`: o repositório devolve
 `JsonValue` e quem transforma em `UIMessage` é o validador, não um cast. Já

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ChatSource, type Prisma } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 export type StoredMessage = {
   id: string;
@@ -45,10 +45,10 @@ function toJsonValue(value: unknown): Prisma.InputJsonValue {
 
 @Injectable()
 export class ChatRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   listForFarm(farmId: string): Promise<ChatSummary[]> {
-    return this.prisma.chat.findMany({
+    return this.db.client.chat.findMany({
       where: { farmId, archivedAt: null },
       select: { id: true, title: true, source: true, updatedAt: true },
       orderBy: { updatedAt: 'desc' },
@@ -59,7 +59,7 @@ export class ChatRepository {
     chatId: string,
     farmId: string,
   ): Promise<ChatWithMessages | null> {
-    return this.prisma.chat.findFirst({
+    return this.db.client.chat.findFirst({
       where: { id: chatId, farmId, archivedAt: null },
       select: {
         id: true,
@@ -73,7 +73,7 @@ export class ChatRepository {
   }
 
   create(chatId: string, farmId: string): Promise<ChatWithMessages> {
-    return this.prisma.chat.create({
+    return this.db.client.chat.create({
       data: { id: chatId, farmId, source: ChatSource.WEB },
       select: {
         id: true,
@@ -88,7 +88,7 @@ export class ChatRepository {
     farmId: string,
     title: string,
   ): Promise<boolean> {
-    const result = await this.prisma.chat.updateMany({
+    const result = await this.db.client.chat.updateMany({
       where: { id: chatId, farmId, archivedAt: null },
       data: { title },
     });
@@ -96,7 +96,7 @@ export class ChatRepository {
   }
 
   async archive(chatId: string, farmId: string): Promise<boolean> {
-    const result = await this.prisma.chat.updateMany({
+    const result = await this.db.client.chat.updateMany({
       where: { id: chatId, farmId, archivedAt: null },
       data: { archivedAt: new Date() },
     });
@@ -104,7 +104,7 @@ export class ChatRepository {
   }
 
   setGeneratedTitle(chatId: string, title: string): Promise<unknown> {
-    return this.prisma.chat.updateMany({
+    return this.db.client.chat.updateMany({
       where: { id: chatId, title: null, archivedAt: null },
       data: { title },
     });
@@ -114,25 +114,25 @@ export class ChatRepository {
     chatId: string,
     messages: MessageToStore[],
   ): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.message.deleteMany({ where: { chatId } }),
-      this.prisma.message.createMany({
+    await this.db.transaction(async () => {
+      await this.db.client.message.deleteMany({ where: { chatId } });
+      await this.db.client.message.createMany({
         data: messages.map((message) => ({
           id: message.id,
           role: message.role,
           parts: toJsonValue(message.parts),
           chatId,
         })),
-      }),
-      this.prisma.chat.update({
+      });
+      await this.db.client.chat.update({
         where: { id: chatId },
         data: { updatedAt: new Date() },
-      }),
-    ]);
+      });
+    });
   }
 
   farmAgentContext(farmId: string): Promise<FarmAgentContext | null> {
-    return this.prisma.farm.findUnique({
+    return this.db.client.farm.findUnique({
       where: { id: farmId },
       select: {
         name: true,

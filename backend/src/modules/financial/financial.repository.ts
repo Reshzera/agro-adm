@@ -4,7 +4,7 @@ import {
   type ExpenseCategory,
   type Prisma,
 } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 type PeriodWhere = { gte?: Date; lt?: Date };
 
@@ -18,10 +18,10 @@ function periodWhere(from?: Date, to?: Date): PeriodWhere | undefined {
 
 @Injectable()
 export class FinancialRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   listAreas(farmId: string) {
-    return this.prisma.farmArea.findMany({
+    return this.db.client.farmArea.findMany({
       where: { farmId },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
@@ -30,7 +30,7 @@ export class FinancialRepository {
 
   async areasBelongToFarm(farmId: string, areaIds: string[]): Promise<boolean> {
     if (!areaIds.length) return true;
-    const count = await this.prisma.farmArea.count({
+    const count = await this.db.client.farmArea.count({
       where: { farmId, id: { in: areaIds } },
     });
     return count === areaIds.length;
@@ -45,7 +45,7 @@ export class FinancialRepository {
     source: EntrySource;
     allocations: { areaId: string | null; amount: string }[];
   }) {
-    return this.prisma.expense.create({
+    return this.db.client.expense.create({
       data: {
         ...data,
         allocations: { create: data.allocations },
@@ -57,7 +57,7 @@ export class FinancialRepository {
   }
 
   findExpense(farmId: string, id: string) {
-    return this.prisma.expense.findFirst({
+    return this.db.client.expense.findFirst({
       where: { id, farmId },
       include: { allocations: true },
     });
@@ -69,16 +69,20 @@ export class FinancialRepository {
     data: Prisma.ExpenseUpdateInput,
     allocations?: { areaId: string | null; amount: string }[],
   ) {
-    return this.prisma.$transaction(async (tx) => {
-      const existing = await tx.expense.findFirst({ where: { id, farmId } });
+    return this.db.transaction(async () => {
+      const existing = await this.db.client.expense.findFirst({
+        where: { id, farmId },
+      });
       if (!existing) return null;
 
       if (allocations) {
-        await tx.expenseAllocation.deleteMany({ where: { expenseId: id } });
+        await this.db.client.expenseAllocation.deleteMany({
+          where: { expenseId: id },
+        });
         data.allocations = { create: allocations };
       }
 
-      return tx.expense.update({
+      return this.db.client.expense.update({
         where: { id },
         data,
         include: {
@@ -89,7 +93,7 @@ export class FinancialRepository {
   }
 
   deleteExpense(farmId: string, id: string) {
-    return this.prisma.expense.deleteMany({ where: { id, farmId } });
+    return this.db.client.expense.deleteMany({ where: { id, farmId } });
   }
 
   listExpenses(
@@ -102,7 +106,7 @@ export class FinancialRepository {
       areaId?: string;
     },
   ) {
-    return this.prisma.expense.findMany({
+    return this.db.client.expense.findMany({
       where: {
         farmId,
         ...(filters.category ? { category: filters.category } : {}),
@@ -124,7 +128,7 @@ export class FinancialRepository {
   }
 
   listExpenseAllocations(farmId: string, from?: Date, to?: Date) {
-    return this.prisma.expenseAllocation.findMany({
+    return this.db.client.expenseAllocation.findMany({
       where: {
         expense: {
           farmId,
@@ -145,23 +149,23 @@ export class FinancialRepository {
     description: string;
     source: EntrySource;
   }) {
-    return this.prisma.revenue.create({ data });
+    return this.db.client.revenue.create({ data });
   }
 
   findRevenue(farmId: string, id: string) {
-    return this.prisma.revenue.findFirst({ where: { id, farmId } });
+    return this.db.client.revenue.findFirst({ where: { id, farmId } });
   }
 
   updateRevenue(farmId: string, id: string, data: Prisma.RevenueUpdateInput) {
-    return this.prisma.revenue.updateMany({ where: { id, farmId }, data });
+    return this.db.client.revenue.updateMany({ where: { id, farmId }, data });
   }
 
   deleteRevenue(farmId: string, id: string) {
-    return this.prisma.revenue.deleteMany({ where: { id, farmId } });
+    return this.db.client.revenue.deleteMany({ where: { id, farmId } });
   }
 
   listRevenues(farmId: string, from?: Date, to?: Date) {
-    return this.prisma.revenue.findMany({
+    return this.db.client.revenue.findMany({
       where: {
         farmId,
         ...(periodWhere(from, to) ? { date: periodWhere(from, to) } : {}),

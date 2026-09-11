@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../database/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 const farmFields = {
   id: true,
@@ -16,23 +16,27 @@ const farmFields = {
 
 @Injectable()
 export class FarmRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   findForOwner(id: string, ownerUserId: string) {
-    return this.prisma.farm.findFirst({
+    return this.db.client.farm.findFirst({
       where: { id, ownerUserId },
       select: farmFields,
     });
   }
 
   findForAgent(id: string) {
-    return this.prisma.farm.findUnique({
+    return this.db.client.farm.findUnique({
       where: { id },
       select: farmFields,
     });
   }
 
   updateForAgent(id: string, data: Prisma.FarmUpdateInput) {
-    return this.prisma.farm.update({ where: { id }, data, select: farmFields });
+    return this.db.client.farm.update({
+      where: { id },
+      data,
+      select: farmFields,
+    });
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../database/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import type { UpdateProfileInput } from './profile.service';
 
 const profileSelection = {
@@ -12,17 +12,17 @@ const profileSelection = {
 
 @Injectable()
 export class ProfileRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   findByUserId(userId: string) {
-    return this.prisma.user.findUnique({
+    return this.db.client.user.findUnique({
       where: { id: userId },
       select: profileSelection,
     });
   }
 
   update(userId: string, input: UpdateProfileInput) {
-    return this.prisma.user.update({
+    return this.db.client.user.update({
       where: { id: userId },
       data: {
         ...input,

@@ -6,10 +6,10 @@ This is a wide but additive change: the new way of obtaining a client coexists w
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Repositories obtain their database client from an ambient transaction context rather than holding one directly
-- [ ] Outside a transaction, behaviour is identical to today
-- [ ] A test demonstrates two different repositories writing inside one transaction and rolling back together
-- [ ] No public service signatures change
-- [ ] The existing test and eval suites are unaffected
+- [x] Repositories obtain their database client from an ambient transaction context rather than holding one directly
+- [x] Outside a transaction, behaviour is identical to today
+- [x] A test demonstrates two different repositories writing inside one transaction and rolling back together
+- [x] No public service signatures change
+- [x] The existing test and eval suites are unaffected
