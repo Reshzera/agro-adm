@@ -6,12 +6,12 @@ Any item can be explained from stored facts alone, with no model involved: what 
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** implemented
 
-- [ ] A triggered rule produces an attention item carrying severity and the facts behind it
-- [ ] Re-triggering updates the existing item — last-seen time, facts, and the evaluation it points at — instead of creating a duplicate
-- [ ] When a previously triggering rule stops triggering, the open item resolves automatically
-- [ ] An explanation can be retrieved for any item, returning facts, the configuration used, the source events and the rule version
-- [ ] The explanation requires no model call and is complete without one
-- [ ] Changing a threshold afterwards does not alter the explanation of an earlier evaluation
-- [ ] Every attention item is traceable back to its originating movement by correlation id
+- [x] A triggered rule produces an attention item carrying severity and the facts behind it
+- [x] Re-triggering updates the existing item — last-seen time, facts, and the evaluation it points at — instead of creating a duplicate
+- [x] When a previously triggering rule stops triggering, the open item resolves automatically
+- [x] An explanation can be retrieved for any item, returning facts, the configuration used, the source events and the rule version
+- [x] The explanation requires no model call and is complete without one
+- [x] Changing a threshold afterwards does not alter the explanation of an earlier evaluation
+- [x] Every attention item is traceable back to its originating movement by correlation id

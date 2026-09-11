@@ -28,6 +28,10 @@ function daysBetween(later: Date, earlier: Date): number {
 export class PaddockStockingLevelRule implements FarmRule {
   readonly ruleId = 'paddock.stocking_level';
   readonly ruleVersion = 1;
+  readonly attention = {
+    category: 'CATTLE',
+    titleCode: 'attention.paddock_stocking_level',
+  };
 
   evaluate(context: MovementRuleContext): RuleResult {
     const configuredHead = context.destination.plannedCapacityHead;
@@ -97,6 +101,10 @@ export class PaddockStockingLevelRule implements FarmRule {
 export class PaddockRestPeriodRule implements FarmRule {
   readonly ruleId = 'paddock.rest_period';
   readonly ruleVersion = 1;
+  readonly attention = {
+    category: 'CATTLE',
+    titleCode: 'attention.paddock_rest_period',
+  };
 
   evaluate(context: MovementRuleContext): RuleResult {
     const applied = threshold(
@@ -155,6 +163,10 @@ export class PaddockRestPeriodRule implements FarmRule {
 export class GrazingReviewDueRule implements FarmRule {
   readonly ruleId = 'rotation.grazing_review_due';
   readonly ruleVersion = 1;
+  readonly attention = {
+    category: 'CATTLE',
+    titleCode: 'attention.grazing_review_due',
+  };
 
   evaluate(context: MovementRuleContext): RuleResult {
     const applied = threshold(

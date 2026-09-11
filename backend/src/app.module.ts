@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AiModule } from './modules/ai/ai.module';
+import { AttentionModule } from './modules/attention/attention.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { CattleModule } from './modules/cattle/cattle.module';
@@ -25,6 +26,7 @@ import { ProfileModule } from './modules/profile/profile.module';
     FinancialModule,
     ProfileModule,
     AiModule,
+    AttentionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

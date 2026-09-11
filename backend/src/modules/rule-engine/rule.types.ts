@@ -44,5 +44,9 @@ export type RuleResult = {
 export interface FarmRule {
   readonly ruleId: string;
   readonly ruleVersion: number;
+  readonly attention: {
+    category: string;
+    titleCode: string;
+  };
   evaluate(context: MovementRuleContext): RuleResult;
 }
