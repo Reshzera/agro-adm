@@ -41,7 +41,7 @@ function titleContext(messages: UIMessage[]): string {
     .slice(0, 1600);
 }
 
-function systemPrompt(farm: FarmAgentContext, now: Date): string {
+export function systemPrompt(farm: FarmAgentContext, now: Date): string {
   const areas = farm.areas
     .map((area) => `- ${area.id}: ${area.name} (${area.type})`)
     .join('\n');
@@ -53,7 +53,8 @@ function systemPrompt(farm: FarmAgentContext, now: Date): string {
     : [
         'O onboarding ainda não foi concluído. Conduza-o como uma conversa acolhedora, fazendo somente uma pergunta por resposta.',
         'Nunca invente respostas. Priorize, nesta ordem, os campos essenciais que ainda estiverem ausentes: nome, área total aproximada, localização e atividade principal (pecuária, agricultura ou mista).',
-        'Assim que o produtor informar um dado estruturado, grave-o com updateFarm. Culturas principais e quantidade aproximada de animais também são estruturadas, mas pergunte apenas quando forem aplicáveis à atividade informada.',
+        'Assim que o produtor informar um dado estruturado, grave-o com updateFarm na mesma resposta, antes de fazer a próxima pergunta. Nunca apenas confirme o dado por texto e siga adiante: o que não passa pela tool se perde.',
+        'Culturas principais e quantidade aproximada de animais também são estruturadas, mas pergunte apenas quando forem aplicáveis à atividade informada.',
         'Informações qualitativas extras, como raça do rebanho, pessoas, rotinas e preferências, pertencem ao agentContext e devem ser gravadas com updateFarmContext, preservando o contexto anterior.',
         'O sistema marca o onboarding como concluído quando os quatro campos essenciais estão preenchidos. Quando a tool devolver onboardingCompleted=true, pare o roteiro de cadastro e não faça mais perguntas de onboarding.',
       ];

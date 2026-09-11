@@ -1,0 +1,40 @@
+name: eval
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/src/modules/chat/chat.service.ts'
+      - 'backend/src/modules/chat/tools/**'
+      - 'backend/eval/**'
+      - '.github/workflows/eval.yml'
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: yarn
+          cache-dependency-path: backend/yarn.lock
+
+      - run: yarn install --frozen-lockfile
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - run: yarn eval
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

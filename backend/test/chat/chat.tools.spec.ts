@@ -85,6 +85,46 @@ describe('chat financial tools', () => {
     });
   });
 
+  it('accepts the Brazilian date format the model emits, and still rejects impossible dates', async () => {
+    const { tools, financial } = toolsForTest();
+
+    await tools.createExpense.execute!(
+      {
+        amount: '3150.00',
+        date: '09/03/2026',
+        description: 'vacina de aftosa',
+        category: 'ANIMAL_HEALTH',
+      },
+      TOOL_EXECUTION_OPTIONS,
+    );
+
+    expect(financial.createExpense).toHaveBeenCalledWith(
+      FARM_ID,
+      expect.objectContaining({ date: '2026-03-09' }),
+    );
+
+    await expect(
+      tools.getExpenses.execute!(
+        { from: '31/02/2026' },
+        TOOL_EXECUTION_OPTIONS,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('filters expenses by area id instead of guessing the area from the text', async () => {
+    const { tools, financial } = toolsForTest();
+
+    await tools.getExpenses.execute!(
+      { from: '2026-01-01', areaId: 'seed-area-pasto-4' },
+      TOOL_EXECUTION_OPTIONS,
+    );
+
+    expect(financial.listExpenses).toHaveBeenCalledWith(FARM_ID, {
+      from: '2026-01-01',
+      areaId: 'seed-area-pasto-4',
+    });
+  });
+
   it('has no tool input that accepts a farm id', () => {
     const schemas = [
       getFarmRegistry.inputSchema,

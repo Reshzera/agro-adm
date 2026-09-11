@@ -116,4 +116,3 @@ export class FinancialController {
     return this.financial.deleteRevenue(request.farmId!, id);
   }
 }
-

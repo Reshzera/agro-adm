@@ -29,12 +29,33 @@ o frontend consulta esse endpoint na home para mostrar se o backend está no ar.
 | `yarn dev` | sobe backend e frontend juntos |
 | `yarn build` | compila os dois |
 | `yarn test` | suíte do backend |
-| `yarn eval` | stub — a pipeline de eval chega no ticket 14 |
+| `yarn eval` | suíte de avaliação do agente contra o modelo real — gasta token |
 | `yarn db:up` / `db:down` / `db:logs` | Postgres do compose |
 | `yarn db:migrate` | `prisma migrate dev` |
 | `yarn db:seed` | reseta e reaplica a fixture Fazenda Santa Clara |
 | `yarn db:reset` | dropa, remigra e resemeia |
 | `yarn db:studio` | Prisma Studio |
+
+## Eval do agente
+
+`yarn eval` é uma pipeline separada de `yarn test` de propósito: ela chama o
+modelo real, gasta token e é não-determinística, então não pode dividir pipeline
+com testes que precisam ser verdes sempre. Os casos vivem em `backend/eval/` e
+rodam com config própria (`backend/jest.eval.config.ts`, arquivos `*.eval.ts`).
+
+Cada caso é um turno só, escrito em português de produtor, e a asserção é sobre
+**qual tool o modelo chamou e com quais argumentos** — nunca sobre o texto da
+resposta. O relógio é o `SEED_CLOCK` e o mundo é a Fazenda Santa Clara, os
+mesmos do `yarn test`; os casos que dependem de confirmação (guardrail nível 2)
+trazem os turnos anteriores prontos no histórico.
+
+A suíte falha abaixo de 90% de acerto (`EVAL_THRESHOLD`), e não por caso
+isolado: um vermelho é ruído, três que passavam e pararam é regressão
+(`EVAL_MAX_REGRESSIONS`). A referência do que passava fica em
+`backend/eval/baseline.json` — regrave com `yarn --cwd backend eval:baseline`
+depois de conferir o relatório. No CI a suíte só roda em `workflow_dispatch` ou
+quando um merge na `main` toca o system prompt, as definições de tool ou os
+próprios casos — branch de feature não gasta token sozinha.
 
 ## Dados
 

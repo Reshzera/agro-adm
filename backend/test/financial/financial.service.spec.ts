@@ -125,4 +125,16 @@ describe('FinancialService', () => {
     });
     expect(repository.listRevenues).not.toHaveBeenCalled();
   });
+
+  it('narrows expenses to an area alongside the period', async () => {
+    await service.listExpenses('farm-1', {
+      from: '2026-01-01',
+      areaId: 'seed-area-pasto-4',
+    });
+
+    expect(repository.listExpenses).toHaveBeenCalledWith('farm-1', {
+      from: new Date('2026-01-01T00:00:00.000Z'),
+      areaId: 'seed-area-pasto-4',
+    });
+  });
 });

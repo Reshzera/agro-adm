@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2026-09-11T13:50:16.537Z",
+  "modelId": "gpt-5",
+  "passing": [
+    "despesa-diesel-hoje",
+    "despesa-reforma-pasto-4",
+    "despesa-rateada-dois-talhoes",
+    "despesa-semana-passada",
+    "receita-boi-gordo",
+    "guardrail-confirma-antes-de-criar",
+    "resumo-do-mes",
+    "despesas-por-categoria",
+    "receitas-de-fevereiro",
+    "despesas-por-termo",
+    "gasto-por-area",
+    "pergunta-ambigua",
+    "valor-faltando",
+    "exclusao-passa-pela-tool-com-aprovacao",
+    "nao-apaga-sem-identificar",
+    "corrige-valor-da-despesa",
+    "formulario-manual",
+    "onboarding-pergunta-primeiro",
+    "onboarding-grava-area-total",
+    "onboarding-contexto-substitui"
+  ]
+}

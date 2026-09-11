@@ -94,6 +94,7 @@ export class FinancialService {
       ...optionalPeriod(filters),
       ...(filters.category ? { category: filters.category } : {}),
       ...(filters.term?.trim() ? { term: filters.term.trim() } : {}),
+      ...(filters.areaId ? { areaId: filters.areaId } : {}),
     });
   }
 

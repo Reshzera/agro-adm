@@ -7,12 +7,13 @@ export async function getExpenses(
   context: ToolContext,
   input: z.infer<typeof getExpensesRegistry.inputSchema>,
 ) {
-  const { category, term, ...period } = input;
+  const { category, term, areaId, ...period } = input;
   return serialize(
     await context.financial.listExpenses(context.farmId, {
       ...resolvePeriod(period, context.now),
       ...(category ? { category } : {}),
       ...(term ? { term } : {}),
+      ...(areaId ? { areaId } : {}),
     }),
   );
 }

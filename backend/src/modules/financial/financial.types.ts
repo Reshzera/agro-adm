@@ -10,6 +10,7 @@ export type FinancialPeriod = {
 export type ExpenseListFilters = FinancialPeriod & {
   category?: ExpenseCategory;
   term?: string;
+  areaId?: string;
 };
 
 export type FinancialEntryType = 'EXPENSE' | 'REVENUE';

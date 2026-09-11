@@ -99,12 +99,16 @@ export class FinancialRepository {
       to?: Date;
       category?: ExpenseCategory;
       term?: string;
+      areaId?: string;
     },
   ) {
     return this.prisma.expense.findMany({
       where: {
         farmId,
         ...(filters.category ? { category: filters.category } : {}),
+        ...(filters.areaId
+          ? { allocations: { some: { areaId: filters.areaId } } }
+          : {}),
         ...(filters.term
           ? { description: { contains: filters.term, mode: 'insensitive' } }
           : {}),

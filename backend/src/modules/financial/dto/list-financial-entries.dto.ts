@@ -18,4 +18,3 @@ export class ListFinancialEntriesDto {
   @IsEnum(ExpenseCategory)
   category?: ExpenseCategory;
 }
-

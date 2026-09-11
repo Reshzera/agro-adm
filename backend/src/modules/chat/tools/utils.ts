@@ -8,7 +8,12 @@ export const moneySchema = z
     /^\d+(?:\.\d{1,2})?$/,
     'Use a monetary value with at most two decimal places.',
   );
-export const relativeDateSchema = z.string().min(1);
+export const relativeDateSchema = z
+  .string()
+  .min(1)
+  .describe(
+    'Data em YYYY-MM-DD ou uma expressão relativa em português, como "hoje", "ontem" ou "semana passada".',
+  );
 export const categorySchema = z.enum(ExpenseCategory);
 export const periodSchema = z
   .object({
@@ -16,6 +21,8 @@ export const periodSchema = z
     to: relativeDateSchema.optional(),
   })
   .strict();
+
+const BRAZILIAN_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
 
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -33,6 +40,15 @@ export function resolveDate(value: string, now: Date): string {
   if (normalized === 'ontem' || normalized === 'yesterday') return offset(-1);
   if (['amanhã', 'amanha', 'tomorrow'].includes(normalized)) return offset(1);
   if (['semana passada', 'last week'].includes(normalized)) return offset(-7);
+
+  const brazilian = BRAZILIAN_DATE.exec(normalized);
+  if (brazilian) {
+    const [, day, month, year] = brazilian;
+    return isoDate(
+      dateOnly(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`),
+    );
+  }
+
   return isoDate(dateOnly(value));
 }
 

@@ -9,4 +9,3 @@ export class FinancialPeriodDto {
   @IsDateString({ strict: true })
   to?: string;
 }
-
