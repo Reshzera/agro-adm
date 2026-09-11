@@ -14,14 +14,14 @@ Occupancy is stored as intervals only. There is deliberately no denormalised "cu
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A single migration creates cattle lots, individual animals, paddock occupancy intervals, and cattle movements
-- [ ] Individual animals are modelled but unused: a lot is fully workable with a head count and zero animal rows
-- [ ] Paddocks gain optional management fields — usable area, maximum grazing days, minimum rest days, planned capacity, forage type — where null means "inherit the farm default"
-- [ ] The farm gains coordinates
-- [ ] Both partial unique indexes above exist and are exercised by a test that proves the duplicate is rejected
-- [ ] Tables exist for the domain event ledger, the outbox, rule evaluations, attention items, and idempotency keys
-- [ ] The event ledger records correlation and causation, distinguishes when something occurred from when it was recorded, and identifies whether the actor was a human, the agent, or the system
-- [ ] The seed fixture and the in-memory test fakes gain lots and occupancy
-- [ ] A full database reset runs clean
+- [x] A single migration creates cattle lots, individual animals, paddock occupancy intervals, and cattle movements
+- [x] Individual animals are modelled but unused: a lot is fully workable with a head count and zero animal rows
+- [x] Paddocks gain optional management fields — usable area, maximum grazing days, minimum rest days, planned capacity, forage type — where null means "inherit the farm default"
+- [x] The farm gains coordinates
+- [x] Both partial unique indexes above exist and are exercised by a test that proves the duplicate is rejected
+- [x] Tables exist for the domain event ledger, the outbox, rule evaluations, attention items, and idempotency keys
+- [x] The event ledger records correlation and causation, distinguishes when something occurred from when it was recorded, and identifies whether the actor was a human, the agent, or the system
+- [x] The seed fixture and the in-memory test fakes gain lots and occupancy
+- [x] A full database reset runs clean

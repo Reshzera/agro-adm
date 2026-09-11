@@ -28,7 +28,7 @@ o frontend consulta esse endpoint na home para mostrar se o backend está no ar.
 | --- | --- |
 | `yarn dev` | sobe backend e frontend juntos |
 | `yarn build` | compila os dois |
-| `yarn test` | suíte do backend |
+| `yarn test` | suíte do backend (precisa do Postgres de pé) |
 | `yarn eval` | suíte de avaliação do agente contra o modelo real — gasta token |
 | `yarn db:up` / `db:down` / `db:logs` | Postgres do compose |
 | `yarn db:migrate` | `prisma migrate dev` |
@@ -74,12 +74,54 @@ nulo); `FarmArea.shape` é polígono em coordenadas 0..1 relativas à imagem do
 mapa, com `space` gravado junto; `FarmArea.hectares` é digitado pelo produtor e
 **não** tem invariante com `Farm.totalAreaHa`.
 
+**Gado e pasto: só intervalos, sem ponteiro.** Um lote (`CattleLot`) ocupa um
+pasto através de `PaddockOccupancy`, que é intervalo (`startedAt`, `endedAt`
+nulo enquanto aberto). Não existe `currentPaddockId` no lote de propósito: duas
+fontes de verdade divergem, o intervalo mais o índice parcial
+`paddock_occupancy_open_lot_key` (`UNIQUE ("lotId") WHERE "endedAt" IS NULL`)
+não. O mesmo vale para `farm_attention_item_open_rule_scope_key`
+(`UNIQUE ("farmId","ruleId","scopeId") WHERE status IN ('NEW','SEEN')`), que
+impede o mesmo alerta empilhar duas vezes para o mesmo escopo. Os dois índices
+são parciais — daí `previewFeatures = ["partialIndexes"]` no gerador — e
+`backend/test/database/schema-invariants.spec.ts` prova a recusa no banco real,
+por isso essa spec (só ela) precisa do Postgres de pé.
+
+**Animal individual existe e não é usado.** `CattleAnimal` está no schema porque
+o produtor que controla animal a animal vai precisar, mas lote com `headCount` e
+zero animais é o caminho normal e tem que funcionar inteiro assim.
+
+**Configuração de pasto em branco significa herdar.** `FarmArea` ganhou
+`usableAreaHa`, `maxGrazingDays`, `minRestDays`, `plannedCapacityHead` e
+`forageType`; nulo quer dizer "usa o padrão da fazenda"
+(`Farm.defaultMaxGrazingDays`, `defaultMinRestDays`,
+`defaultStockingRateHeadPerHa`), e o padrão do sistema entra só se a fazenda
+também estiver em branco. Quem grava avaliação de regra tem que gravar junto o
+valor resolvido e de onde ele veio — mudar o limite depois não pode reescrever a
+explicação de ontem.
+
+**Trilha de evento nasce vazia.** `domain_event`, `outbox_message`,
+`rule_evaluation`, `farm_attention_item` e `idempotency_key` existem desde a
+migration `20260911164247_cattle_paddock_and_event_schema` e ninguém escreve
+nelas ainda — os tickets 07 a 09 escrevem. O evento separa quando aconteceu
+(`occurredAt`, que aceita lançamento retroativo) de quando foi registrado
+(`recordedAt`), e carrega `correlationId`/`causationId` mais `actorType`
+(`USER`, `AGENT`, `SYSTEM`, `INTEGRATION`) — é o que liga movimento, regra e
+alerta numa operação só.
+
 **A fixture é a Fazenda Santa Clara**, em `backend/src/seed/santa-clara.ts`. Ela não
 é dado de vitrine: é o mundo contra o qual os testes e os evals de todas as
 fatias rodam. IDs são literais legíveis (`seed-area-talhao-1`) e as datas saem
 de um relógio congelado (`SEED_CLOCK`, 16/03/2026) — asserção sobre "esse mês"
 não pode depender de quando a suíte roda. Há uma segunda fazenda no seed só
 para que o teste de isolamento por `farmId` tenha contra quem falhar.
+
+A fixture tem gado: Lote 12 (180 cabeças) no Pasto 4 desde 04/03, Lote 8 (96) no
+Pasto 5 desde 12/03 e Lote 3 (240) sem pasto nenhum. O Lote 12 está lá há 12
+dias contra os 10 configurados no Pasto 4 — é o caso que a regra de rotação do
+ticket 08 precisa achar. O Pasto 6 guarda uma ocupação já fechada, para existir
+descanso medível. Os fakes em memória
+(`backend/test/test-setups/mock-repositories.ts`) repetem esse mundo e recusam
+segunda ocupação aberta do mesmo jeito que o índice recusa.
 
 ## Coisas que vão morder
 

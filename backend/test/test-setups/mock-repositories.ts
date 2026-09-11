@@ -4,7 +4,7 @@ import type {
   MessageToStore,
   StoredMessage,
 } from '../../src/modules/chat/chat.repository';
-import { ChatSource } from '@prisma/client';
+import { CattleCategory, ChatSource } from '@prisma/client';
 
 type Profile = {
   id: string;
@@ -27,12 +27,33 @@ type Farm = {
   onboardingCompleted: boolean;
 };
 
+type Lot = {
+  id: string;
+  farmId: string;
+  name: string;
+  category: CattleCategory;
+  purpose: string | null;
+  headCount: number;
+  active: boolean;
+};
+
+type Occupancy = {
+  id: string;
+  farmId: string;
+  lotId: string;
+  paddockId: string;
+  startedAt: Date;
+  endedAt: Date | null;
+};
+
 export type MockRepositories = ReturnType<typeof createMockRepositories>;
 
 export function createMockRepositories() {
   let profiles = new Map<string, Profile>();
   let farms = new Map<string, Farm>();
   let expenses = new Map<string, { farmId: string }>();
+  let lots = new Map<string, Lot>();
+  let occupancies = new Map<string, Occupancy>();
   let chats = new Map<
     string,
     {
@@ -196,10 +217,61 @@ export function createMockRepositories() {
         onboardingCompleted: farm.onboardingCompleted,
         areas: [
           { id: SEED_IDS.areas.pasto4, name: 'Pasto 4', type: 'PASTURE' },
+          { id: SEED_IDS.areas.pasto5, name: 'Pasto 5', type: 'PASTURE' },
+          { id: SEED_IDS.areas.pasto6, name: 'Pasto 6', type: 'PASTURE' },
           { id: SEED_IDS.areas.talhao1, name: 'Talhão 1', type: 'CROP_FIELD' },
           { id: SEED_IDS.areas.talhao2, name: 'Talhão 2', type: 'CROP_FIELD' },
         ],
       };
+    }),
+  };
+
+  const cattle = {
+    listLots: jest.fn((farmId: string) =>
+      [...lots.values()]
+        .filter((lot) => lot.farmId === farmId && lot.active)
+        .sort((left, right) => left.name.localeCompare(right.name)),
+    ),
+    findLot: jest.fn((id: string, farmId: string) => {
+      const lot = lots.get(id);
+      if (!lot || lot.farmId !== farmId) return null;
+      return { ...lot };
+    }),
+    findOpenOccupancy: jest.fn((lotId: string) => {
+      const open = [...occupancies.values()].find(
+        (item) => item.lotId === lotId && !item.endedAt,
+      );
+      return open ? { ...open } : null;
+    }),
+    listOccupancies: jest.fn((paddockId: string) =>
+      [...occupancies.values()]
+        .filter((item) => item.paddockId === paddockId)
+        .sort((left, right) => +left.startedAt - +right.startedAt)
+        .map((item) => ({ ...item })),
+    ),
+    openOccupancy: jest.fn(
+      (input: Omit<Occupancy, 'id' | 'endedAt'> & { id?: string }) => {
+        const already = [...occupancies.values()].some(
+          (item) => item.lotId === input.lotId && !item.endedAt,
+        );
+        if (already) {
+          throw new Error(
+            'Unique constraint failed on the index: (`paddock_occupancy_open_lot_key`)',
+          );
+        }
+        const id = input.id ?? `occupancy-${occupancies.size + 1}`;
+        const occupancy = { ...input, id, endedAt: null };
+        occupancies.set(id, occupancy);
+        return { ...occupancy };
+      },
+    ),
+    closeOccupancy: jest.fn((lotId: string, endedAt: Date) => {
+      const open = [...occupancies.values()].find(
+        (item) => item.lotId === lotId && !item.endedAt,
+      );
+      if (!open) return false;
+      open.endedAt = endedAt;
+      return true;
     }),
   };
 
@@ -245,6 +317,102 @@ export function createMockRepositories() {
           approximateAnimalCount: null,
           agentContext: null,
           onboardingCompleted: true,
+        },
+      ],
+    ]);
+    lots = new Map([
+      [
+        SEED_IDS.lots.recria,
+        {
+          id: SEED_IDS.lots.recria,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Lote 12',
+          category: CattleCategory.STEERS,
+          purpose: 'Recria',
+          headCount: 180,
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.lots.bezerros,
+        {
+          id: SEED_IDS.lots.bezerros,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Lote 8',
+          category: CattleCategory.CALVES,
+          purpose: 'Bezerros desmamados',
+          headCount: 96,
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.lots.vacas,
+        {
+          id: SEED_IDS.lots.vacas,
+          farmId: SEED_IDS.farms.santaClara,
+          name: 'Lote 3',
+          category: CattleCategory.COWS,
+          purpose: 'Vacas de cria',
+          headCount: 240,
+          active: true,
+        },
+      ],
+      [
+        SEED_IDS.lots.boaVistaNelore,
+        {
+          id: SEED_IDS.lots.boaVistaNelore,
+          farmId: SEED_IDS.farms.boaVista,
+          name: 'Lote 1',
+          category: CattleCategory.HEIFERS,
+          purpose: 'Novilhas de reposição',
+          headCount: 64,
+          active: true,
+        },
+      ],
+    ]);
+    occupancies = new Map([
+      [
+        SEED_IDS.occupancies.recriaPasto6,
+        {
+          id: SEED_IDS.occupancies.recriaPasto6,
+          farmId: SEED_IDS.farms.santaClara,
+          lotId: SEED_IDS.lots.recria,
+          paddockId: SEED_IDS.areas.pasto6,
+          startedAt: new Date('2026-01-20T11:00:00.000Z'),
+          endedAt: new Date('2026-02-10T11:00:00.000Z'),
+        },
+      ],
+      [
+        SEED_IDS.occupancies.recriaPasto4,
+        {
+          id: SEED_IDS.occupancies.recriaPasto4,
+          farmId: SEED_IDS.farms.santaClara,
+          lotId: SEED_IDS.lots.recria,
+          paddockId: SEED_IDS.areas.pasto4,
+          startedAt: new Date('2026-03-04T11:00:00.000Z'),
+          endedAt: null,
+        },
+      ],
+      [
+        SEED_IDS.occupancies.bezerrosPasto5,
+        {
+          id: SEED_IDS.occupancies.bezerrosPasto5,
+          farmId: SEED_IDS.farms.santaClara,
+          lotId: SEED_IDS.lots.bezerros,
+          paddockId: SEED_IDS.areas.pasto5,
+          startedAt: new Date('2026-03-12T11:00:00.000Z'),
+          endedAt: null,
+        },
+      ],
+      [
+        SEED_IDS.occupancies.boaVistaNelorePasto1,
+        {
+          id: SEED_IDS.occupancies.boaVistaNelorePasto1,
+          farmId: SEED_IDS.farms.boaVista,
+          lotId: SEED_IDS.lots.boaVistaNelore,
+          paddockId: SEED_IDS.areas.boaVistaPasto1,
+          startedAt: new Date('2026-02-02T11:00:00.000Z'),
+          endedAt: null,
         },
       ],
     ]);
@@ -310,6 +478,12 @@ export function createMockRepositories() {
     chat.replaceMessages.mockClear();
     chat.farmAgentContext.mockClear();
     financial.deleteExpense.mockClear();
+    cattle.listLots.mockClear();
+    cattle.findLot.mockClear();
+    cattle.findOpenOccupancy.mockClear();
+    cattle.listOccupancies.mockClear();
+    cattle.openOccupancy.mockClear();
+    cattle.closeOccupancy.mockClear();
   }
 
   reset();
@@ -319,6 +493,7 @@ export function createMockRepositories() {
     profile,
     chat,
     financial,
+    cattle,
     reset,
     now: new Date(SEED_CLOCK),
   };

@@ -1,4 +1,5 @@
 import {
+  CattleCategory,
   EntrySource,
   ExpenseCategory,
   FarmAreaType,
@@ -22,6 +23,8 @@ export const SEED_IDS = {
   },
   areas: {
     pasto4: 'seed-area-pasto-4',
+    pasto5: 'seed-area-pasto-5',
+    pasto6: 'seed-area-pasto-6',
     talhao1: 'seed-area-talhao-1',
     talhao2: 'seed-area-talhao-2',
     sede: 'seed-area-sede',
@@ -43,10 +46,26 @@ export const SEED_IDS = {
   chats: {
     primeiraConversa: 'seed-chat-primeira-conversa',
   },
+  lots: {
+    recria: 'seed-lot-recria',
+    bezerros: 'seed-lot-bezerros',
+    vacas: 'seed-lot-vacas',
+    boaVistaNelore: 'seed-lot-bv-nelore',
+  },
+  occupancies: {
+    recriaPasto4: 'seed-occupancy-recria-pasto-4',
+    recriaPasto6: 'seed-occupancy-recria-pasto-6',
+    bezerrosPasto5: 'seed-occupancy-bezerros-pasto-5',
+    boaVistaNelorePasto1: 'seed-occupancy-bv-nelore-pasto-1',
+  },
 } as const;
 
 function day(iso: string): Date {
   return new Date(`${iso}T00:00:00.000Z`);
+}
+
+function at(iso: string): Date {
+  return new Date(iso);
 }
 
 function shape(points: [number, number][]): Prisma.InputJsonValue {
@@ -54,6 +73,15 @@ function shape(points: [number, number][]): Prisma.InputJsonValue {
 }
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
+  await prisma.farmAttentionItem.deleteMany();
+  await prisma.ruleEvaluation.deleteMany();
+  await prisma.outboxMessage.deleteMany();
+  await prisma.domainEvent.deleteMany();
+  await prisma.idempotencyKey.deleteMany();
+  await prisma.cattleMovement.deleteMany();
+  await prisma.paddockOccupancy.deleteMany();
+  await prisma.cattleAnimal.deleteMany();
+  await prisma.cattleLot.deleteMany();
   await prisma.expenseAllocation.deleteMany();
   await prisma.expense.deleteMany();
   await prisma.revenue.deleteMany();
@@ -87,6 +115,11 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
       location: 'Camapuã, MS',
       mainCrops: 'Milho safrinha',
       approximateAnimalCount: 920,
+      latitude: '-19.530700',
+      longitude: '-54.043300',
+      defaultMaxGrazingDays: 10,
+      defaultMinRestDays: 30,
+      defaultStockingRateHeadPerHa: '1.80',
       onboardingCompleted: true,
       agentContext: [
         '# Fazenda Santa Clara',
@@ -119,11 +152,48 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
         name: 'Pasto 4',
         type: FarmAreaType.PASTURE,
         hectares: '63.50',
+        usableAreaHa: '58.00',
+        maxGrazingDays: 10,
+        plannedCapacityHead: 120,
+        forageType: 'Brachiária brizantha',
         shape: shape([
           [0.12, 0.18],
           [0.34, 0.15],
           [0.38, 0.36],
           [0.15, 0.4],
+        ]),
+      },
+      {
+        id: SEED_IDS.areas.pasto5,
+        farmId: SEED_IDS.farms.santaClara,
+        mapImageId: SEED_IDS.mapImages.santaClara,
+        name: 'Pasto 5',
+        type: FarmAreaType.PASTURE,
+        hectares: '71.20',
+        usableAreaHa: '66.00',
+        minRestDays: 35,
+        forageType: 'Mombaça',
+        shape: shape([
+          [0.14, 0.44],
+          [0.37, 0.42],
+          [0.4, 0.62],
+          [0.16, 0.65],
+        ]),
+      },
+      {
+        id: SEED_IDS.areas.pasto6,
+        farmId: SEED_IDS.farms.santaClara,
+        mapImageId: SEED_IDS.mapImages.santaClara,
+        name: 'Pasto 6',
+        type: FarmAreaType.PASTURE,
+        hectares: '52.80',
+        usableAreaHa: '49.00',
+        forageType: 'Brachiária brizantha',
+        shape: shape([
+          [0.42, 0.5],
+          [0.62, 0.52],
+          [0.6, 0.72],
+          [0.41, 0.7],
         ]),
       },
       {
@@ -159,6 +229,66 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
         farmId: SEED_IDS.farms.santaClara,
         name: 'Sede',
         type: FarmAreaType.OTHER,
+      },
+    ],
+  });
+
+  await prisma.cattleLot.createMany({
+    data: [
+      {
+        id: SEED_IDS.lots.recria,
+        farmId: SEED_IDS.farms.santaClara,
+        name: 'Lote 12',
+        category: CattleCategory.STEERS,
+        purpose: 'Recria',
+        headCount: 180,
+        startedOn: day('2025-11-10'),
+      },
+      {
+        id: SEED_IDS.lots.bezerros,
+        farmId: SEED_IDS.farms.santaClara,
+        name: 'Lote 8',
+        category: CattleCategory.CALVES,
+        purpose: 'Bezerros desmamados',
+        headCount: 96,
+        startedOn: day('2026-01-15'),
+      },
+      {
+        id: SEED_IDS.lots.vacas,
+        farmId: SEED_IDS.farms.santaClara,
+        name: 'Lote 3',
+        category: CattleCategory.COWS,
+        purpose: 'Vacas de cria',
+        headCount: 240,
+        startedOn: day('2025-08-01'),
+        notes: 'Sem pasto atribuído: acabou de voltar do arrendamento vizinho.',
+      },
+    ],
+  });
+
+  await prisma.paddockOccupancy.createMany({
+    data: [
+      {
+        id: SEED_IDS.occupancies.recriaPasto6,
+        farmId: SEED_IDS.farms.santaClara,
+        lotId: SEED_IDS.lots.recria,
+        paddockId: SEED_IDS.areas.pasto6,
+        startedAt: at('2026-01-20T11:00:00.000Z'),
+        endedAt: at('2026-02-10T11:00:00.000Z'),
+      },
+      {
+        id: SEED_IDS.occupancies.recriaPasto4,
+        farmId: SEED_IDS.farms.santaClara,
+        lotId: SEED_IDS.lots.recria,
+        paddockId: SEED_IDS.areas.pasto4,
+        startedAt: at('2026-03-04T11:00:00.000Z'),
+      },
+      {
+        id: SEED_IDS.occupancies.bezerrosPasto5,
+        farmId: SEED_IDS.farms.santaClara,
+        lotId: SEED_IDS.lots.bezerros,
+        paddockId: SEED_IDS.areas.pasto5,
+        startedAt: at('2026-03-12T11:00:00.000Z'),
       },
     ],
   });
@@ -331,6 +461,8 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
       totalAreaHa: '310.00',
       primaryActivity: 'Pecuária de corte',
       location: 'Rio Negro, MS',
+      latitude: '-19.449700',
+      longitude: '-54.986800',
       onboardingCompleted: true,
       areas: {
         create: [
@@ -339,6 +471,10 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
             name: 'Pasto 1',
             type: FarmAreaType.PASTURE,
             hectares: '48.00',
+            usableAreaHa: '44.00',
+            maxGrazingDays: 12,
+            minRestDays: 28,
+            forageType: 'Brachiária brizantha',
           },
         ],
       },
@@ -356,6 +492,28 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
       source: EntrySource.MANUAL,
       allocations: {
         create: [{ areaId: SEED_IDS.areas.boaVistaPasto1, amount: '2100.00' }],
+      },
+    },
+  });
+
+  await prisma.cattleLot.create({
+    data: {
+      id: SEED_IDS.lots.boaVistaNelore,
+      farmId: SEED_IDS.farms.boaVista,
+      name: 'Lote 1',
+      category: CattleCategory.HEIFERS,
+      purpose: 'Novilhas de reposição',
+      headCount: 64,
+      startedOn: day('2026-02-02'),
+      occupancies: {
+        create: [
+          {
+            id: SEED_IDS.occupancies.boaVistaNelorePasto1,
+            farmId: SEED_IDS.farms.boaVista,
+            paddockId: SEED_IDS.areas.boaVistaPasto1,
+            startedAt: at('2026-02-02T11:00:00.000Z'),
+          },
+        ],
       },
     },
   });

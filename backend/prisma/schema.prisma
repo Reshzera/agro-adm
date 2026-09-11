@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
@@ -42,6 +43,76 @@ enum PendingActionStatus {
   CONFIRMED
   CANCELLED
   EXPIRED
+}
+
+enum CattleCategory {
+  CALVES
+  HEIFERS
+  COWS
+  BULLS
+  STEERS
+  FINISHING
+}
+
+enum CattleSex {
+  MALE
+  FEMALE
+}
+
+enum CattleAnimalStatus {
+  ACTIVE
+  SOLD
+  DECEASED
+  TRANSFERRED
+  MISSING
+}
+
+enum ActorType {
+  USER
+  AGENT
+  SYSTEM
+  INTEGRATION
+}
+
+enum DomainEventSource {
+  WEB
+  AGENT
+  SYSTEM
+  IMPORT
+  INTEGRATION
+  WHATSAPP
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum RuleEvaluationStatus {
+  PASSED
+  TRIGGERED
+  INSUFFICIENT_DATA
+  ERROR
+}
+
+enum RuleSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AttentionItemStatus {
+  NEW
+  SEEN
+  RESOLVED
+}
+
+enum AttentionScopeType {
+  FARM
+  PADDOCK
+  LOT
+  ANIMAL
 }
 
 model User {
@@ -122,6 +193,13 @@ model Farm {
   approximateAnimalCount Int?
   agentContext           String?
 
+  latitude  Decimal? @db.Decimal(9, 6)
+  longitude Decimal? @db.Decimal(9, 6)
+
+  defaultMaxGrazingDays        Int?
+  defaultMinRestDays           Int?
+  defaultStockingRateHeadPerHa Decimal? @db.Decimal(8, 2)
+
   onboardingCompleted Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -133,6 +211,15 @@ model Farm {
   pendingActions PendingAction[]
   mapImages      FarmMapImage[]
   areas          FarmArea[]
+
+  cattleLots      CattleLot[]
+  cattleAnimals   CattleAnimal[]
+  occupancies     PaddockOccupancy[]
+  cattleMovements CattleMovement[]
+  domainEvents    DomainEvent[]
+  ruleEvaluations RuleEvaluation[]
+  attentionItems  FarmAttentionItem[]
+  idempotencyKeys IdempotencyKey[]
 
   @@unique([ownerUserId])
   @@map("farm")
@@ -274,13 +361,287 @@ model FarmArea {
   shape    Json?
   metadata Json?
 
+  usableAreaHa        Decimal? @db.Decimal(10, 2)
+  maxGrazingDays      Int?
+  minRestDays         Int?
+  plannedCapacityHead Int?
+  forageType          String?
+
+  active Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  allocations ExpenseAllocation[]
+  allocations   ExpenseAllocation[]
+  occupancies   PaddockOccupancy[]
+  movementsFrom CattleMovement[]    @relation("MovementOrigin")
+  movementsTo   CattleMovement[]    @relation("MovementDestination")
 
   @@unique([farmId, name])
   @@index([farmId])
   @@index([mapImageId])
   @@map("farm_area")
+}
+
+model CattleLot {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  name      String
+  category  CattleCategory
+  purpose   String?
+  headCount Int            @default(0)
+  startedOn DateTime?      @db.Date
+  notes     String?
+
+  active Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  animals     CattleAnimal[]
+  occupancies PaddockOccupancy[]
+  movements   CattleMovement[]
+
+  @@unique([farmId, name])
+  @@index([farmId, active])
+  @@map("cattle_lot")
+}
+
+model CattleAnimal {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  lotId String?
+  lot   CattleLot? @relation(fields: [lotId], references: [id], onDelete: SetNull)
+
+  visualTag       String?
+  electronicTag   String?
+  sex             CattleSex
+  breed           String?
+  bornOn          DateTime?          @db.Date
+  origin          String?
+  acquiredOn      DateTime?          @db.Date
+  acquisitionCost Decimal?           @db.Decimal(14, 2)
+  status          CattleAnimalStatus @default(ACTIVE)
+  notes           String?
+
+  sireId String?
+  sire   CattleAnimal?  @relation("AnimalSire", fields: [sireId], references: [id], onDelete: SetNull)
+  sired  CattleAnimal[] @relation("AnimalSire")
+
+  damId String?
+  dam   CattleAnimal?  @relation("AnimalDam", fields: [damId], references: [id], onDelete: SetNull)
+  borne CattleAnimal[] @relation("AnimalDam")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([farmId, visualTag])
+  @@unique([farmId, electronicTag])
+  @@index([farmId, status])
+  @@index([lotId])
+  @@map("cattle_animal")
+}
+
+model PaddockOccupancy {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  lotId String
+  lot   CattleLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+
+  paddockId String
+  paddock   FarmArea @relation(fields: [paddockId], references: [id], onDelete: Restrict)
+
+  startedAt DateTime
+  endedAt   DateTime?
+
+  correlationId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([lotId], where: { endedAt: null }, map: "paddock_occupancy_open_lot_key")
+  @@index([farmId, startedAt])
+  @@index([paddockId, startedAt])
+  @@index([lotId, startedAt])
+  @@map("paddock_occupancy")
+}
+
+model CattleMovement {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  lotId String
+  lot   CattleLot @relation(fields: [lotId], references: [id], onDelete: Restrict)
+
+  fromPaddockId String?
+  fromPaddock   FarmArea? @relation("MovementOrigin", fields: [fromPaddockId], references: [id], onDelete: Restrict)
+
+  toPaddockId String
+  toPaddock   FarmArea @relation("MovementDestination", fields: [toPaddockId], references: [id], onDelete: Restrict)
+
+  headCount Int
+
+  occurredAt DateTime
+  recordedAt DateTime @default(now())
+
+  actorType ActorType
+  actorId   String?
+  source    DomainEventSource
+
+  reason String?
+  notes  String?
+
+  correlationId String
+
+  @@index([farmId, occurredAt])
+  @@index([lotId, occurredAt])
+  @@index([toPaddockId, occurredAt])
+  @@index([correlationId])
+  @@map("cattle_movement")
+}
+
+model DomainEvent {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  eventType    String
+  eventVersion Int    @default(1)
+
+  aggregateType String
+  aggregateId   String
+
+  actorType ActorType
+  actorId   String?
+  source    DomainEventSource
+
+  correlationId String
+  causationId   String?
+
+  payload  Json
+  metadata Json?
+
+  occurredAt DateTime
+  recordedAt DateTime @default(now())
+
+  outbox          OutboxMessage?
+  ruleEvaluations RuleEvaluation[]
+
+  @@index([farmId, occurredAt])
+  @@index([aggregateType, aggregateId, occurredAt])
+  @@index([correlationId])
+  @@map("domain_event")
+}
+
+model OutboxMessage {
+  id      String      @id @default(cuid())
+  eventId String      @unique
+  event   DomainEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  lastError   String?
+  availableAt DateTime     @default(now())
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, availableAt])
+  @@map("outbox_message")
+}
+
+model RuleEvaluation {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  triggerEventId String?
+  triggerEvent   DomainEvent? @relation(fields: [triggerEventId], references: [id], onDelete: SetNull)
+  correlationId  String
+
+  ruleId      String
+  ruleVersion Int
+
+  status   RuleEvaluationStatus
+  severity RuleSeverity?
+
+  scopeType AttentionScopeType
+  scopeId   String
+
+  facts           Json
+  configSnapshot  Json?
+  suggestedAction Json?
+
+  evaluatedAt DateTime @default(now())
+  durationMs  Int?
+  errorCode   String?
+
+  attentionItems FarmAttentionItem[]
+
+  @@index([farmId, evaluatedAt])
+  @@index([correlationId])
+  @@index([ruleId, evaluatedAt])
+  @@map("rule_evaluation")
+}
+
+model FarmAttentionItem {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  ruleId      String
+  ruleVersion Int
+
+  scopeType AttentionScopeType
+  scopeId   String
+
+  ruleEvaluationId String?
+  ruleEvaluation   RuleEvaluation? @relation(fields: [ruleEvaluationId], references: [id], onDelete: SetNull)
+
+  correlationId String?
+
+  category  String
+  severity  RuleSeverity
+  titleCode String
+
+  facts           Json
+  suggestedAction Json?
+
+  status AttentionItemStatus @default(NEW)
+
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  expiresAt   DateTime?
+
+  @@unique([farmId, ruleId, scopeId], where: raw("status IN ('NEW', 'SEEN')"), map: "farm_attention_item_open_rule_scope_key")
+  @@index([farmId, status, severity])
+  @@index([correlationId])
+  @@map("farm_attention_item")
+}
+
+model IdempotencyKey {
+  id     String @id @default(cuid())
+  farmId String
+  farm   Farm   @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  scope       String
+  key         String
+  requestHash String
+
+  result      Json?
+  completedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  @@unique([farmId, scope, key])
+  @@index([expiresAt])
+  @@map("idempotency_key")
 }

@@ -19,6 +19,8 @@ export const SANTA_CLARA: FarmAgentContext = {
   ].join('\n'),
   areas: [
     { id: SEED_IDS.areas.pasto4, name: 'Pasto 4', type: 'PASTURE' },
+    { id: SEED_IDS.areas.pasto5, name: 'Pasto 5', type: 'PASTURE' },
+    { id: SEED_IDS.areas.pasto6, name: 'Pasto 6', type: 'PASTURE' },
     { id: SEED_IDS.areas.talhao1, name: 'Talhão 1', type: 'CROP_FIELD' },
     { id: SEED_IDS.areas.talhao2, name: 'Talhão 2', type: 'CROP_FIELD' },
     { id: SEED_IDS.areas.sede, name: 'Sede', type: 'OTHER' },
