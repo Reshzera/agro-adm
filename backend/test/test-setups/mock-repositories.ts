@@ -4,7 +4,12 @@ import type {
   MessageToStore,
   StoredMessage,
 } from '../../src/modules/chat/chat.repository';
-import { CattleCategory, ChatSource, FarmAreaType } from '@prisma/client';
+import {
+  CattleCategory,
+  ChatSource,
+  FarmAreaType,
+  OutboxStatus,
+} from '@prisma/client';
 
 type Profile = {
   id: string;
@@ -63,6 +68,7 @@ type Occupancy = {
   paddockId: string;
   startedAt: Date;
   endedAt: Date | null;
+  correlationId?: string | null;
 };
 
 export type MockRepositories = ReturnType<typeof createMockRepositories>;
@@ -74,6 +80,10 @@ export function createMockRepositories() {
   let lots = new Map<string, Lot>();
   let paddocks = new Map<string, Paddock>();
   let occupancies = new Map<string, Occupancy>();
+  let movements = new Map<string, Record<string, unknown>>();
+  let domainEvents = new Map<string, Record<string, unknown>>();
+  let outboxMessages = new Map<string, Record<string, unknown>>();
+  let idempotencyKeys = new Map<string, Record<string, unknown>>();
   let chats = new Map<
     string,
     {
@@ -402,13 +412,146 @@ export function createMockRepositories() {
         return { ...occupancy };
       },
     ),
-    closeOccupancy: jest.fn((lotId: string, endedAt: Date) => {
-      const open = [...occupancies.values()].find(
-        (item) => item.lotId === lotId && !item.endedAt,
+    findMovementIdempotency: jest.fn(
+      (farmId: string, key: string) =>
+        [...idempotencyKeys.values()].find(
+          (item) => item.farmId === farmId && item.key === key,
+        ) ?? null,
+    ),
+    createMovementIdempotency: jest.fn(
+      (farmId: string, key: string, requestHash: string) => {
+        const id = `idempotency-${idempotencyKeys.size + 1}`;
+        const item = {
+          id,
+          farmId,
+          scope: 'cattle.move-lot',
+          key,
+          requestHash,
+          result: null,
+          completedAt: null,
+        };
+        idempotencyKeys.set(id, item);
+        return item;
+      },
+    ),
+    completeMovementIdempotency: jest.fn(
+      (id: string, result: Record<string, unknown>) => {
+        const item = idempotencyKeys.get(id)!;
+        Object.assign(item, { result, completedAt: new Date() });
+        return item;
+      },
+    ),
+    findLotForMovement: jest.fn((farmId: string, id: string) => {
+      const lot = lots.get(id);
+      if (!lot || lot.farmId !== farmId) return null;
+      return {
+        id: lot.id,
+        name: lot.name,
+        headCount: lot.headCount,
+        active: lot.active,
+      };
+    }),
+    findDestinationForMovement: jest.fn((farmId: string, id: string) => {
+      const paddock = paddocks.get(id);
+      if (!paddock || paddock.farmId !== farmId) return null;
+      return { id: paddock.id, name: paddock.name, active: paddock.active };
+    }),
+    findOpenOccupancyForMovement: jest.fn((farmId: string, lotId: string) => {
+      const item = [...occupancies.values()].find(
+        (occupancy) =>
+          occupancy.farmId === farmId &&
+          occupancy.lotId === lotId &&
+          !occupancy.endedAt,
       );
-      if (!open) return false;
-      open.endedAt = endedAt;
-      return true;
+      if (!item) return null;
+      return {
+        id: item.id,
+        paddockId: item.paddockId,
+        startedAt: item.startedAt,
+        paddock: {
+          id: item.paddockId,
+          name: paddocks.get(item.paddockId)!.name,
+        },
+      };
+    }),
+    closeOccupancy: jest.fn(
+      (id: string, farmIdOrDate: string | Date, maybeEndedAt?: Date) => {
+        // Supports both the ticket 06 test helper signature and the command.
+        if (farmIdOrDate instanceof Date) {
+          const open = [...occupancies.values()].find(
+            (item) => item.lotId === id && !item.endedAt,
+          );
+          if (!open) return false;
+          open.endedAt = farmIdOrDate;
+          return true;
+        }
+        const item = occupancies.get(id);
+        if (!item || item.farmId !== farmIdOrDate || item.endedAt) {
+          return { count: 0 };
+        }
+        item.endedAt = maybeEndedAt!;
+        return { count: 1 };
+      },
+    ),
+    createMovement: jest.fn((input: Record<string, unknown>) => {
+      const id = `movement-${movements.size + 1}`;
+      const item = { ...input, id, recordedAt: new Date() };
+      movements.set(id, item);
+      return item;
+    }),
+    openMovementOccupancy: jest.fn(
+      (input: Omit<Occupancy, 'id' | 'endedAt'>) => {
+        const already = [...occupancies.values()].some(
+          (item) => item.lotId === input.lotId && !item.endedAt,
+        );
+        if (already) throw new Error('open occupancy already exists');
+        const id = `occupancy-${occupancies.size + 1}`;
+        const item = { ...input, id, endedAt: null };
+        occupancies.set(id, item);
+        return item;
+      },
+    ),
+    createMovementEvent: jest.fn((input: Record<string, unknown>) => {
+      const id = `event-${domainEvents.size + 1}`;
+      const outbox = {
+        id: `outbox-${outboxMessages.size + 1}`,
+        eventId: id,
+        status: OutboxStatus.PENDING,
+      };
+      const item = { ...input, id, recordedAt: new Date(), outbox };
+      domainEvents.set(id, item);
+      outboxMessages.set(outbox.id, outbox);
+      return item;
+    }),
+    listMovements: jest.fn(() => [...movements.values()]),
+    listDomainEvents: jest.fn(() => [...domainEvents.values()]),
+    listOutboxMessages: jest.fn(() => [...outboxMessages.values()]),
+    listIdempotencyKeys: jest.fn(() => [...idempotencyKeys.values()]),
+  };
+
+  const database = {
+    transaction: jest.fn(async <T>(operation: () => Promise<T>) => {
+      const before = {
+        occupancies: new Map(
+          [...occupancies].map(([id, item]) => [id, { ...item }]),
+        ),
+        movements: new Map(movements),
+        domainEvents: new Map(domainEvents),
+        outboxMessages: new Map(outboxMessages),
+        idempotencyKeys: new Map(
+          [...idempotencyKeys].map(([id, item]) => [id, { ...item }]),
+        ),
+      };
+      try {
+        return await operation();
+      } catch (error) {
+        occupancies = before.occupancies;
+        movements = before.movements;
+        domainEvents = before.domainEvents;
+        outboxMessages = before.outboxMessages;
+        idempotencyKeys = before.idempotencyKeys;
+        throw error;
+      }
     }),
   };
 
@@ -625,6 +768,10 @@ export function createMockRepositories() {
         },
       ],
     ]);
+    movements = new Map();
+    domainEvents = new Map();
+    outboxMessages = new Map();
+    idempotencyKeys = new Map();
     expenses = new Map([
       [SEED_IDS.expenses.diesel, { farmId: SEED_IDS.farms.santaClara }],
       [SEED_IDS.expenses.vacina, { farmId: SEED_IDS.farms.santaClara }],
@@ -702,6 +849,16 @@ export function createMockRepositories() {
     cattle.listOccupancies.mockClear();
     cattle.openOccupancy.mockClear();
     cattle.closeOccupancy.mockClear();
+    cattle.findMovementIdempotency.mockClear();
+    cattle.createMovementIdempotency.mockClear();
+    cattle.findLotForMovement.mockClear();
+    cattle.findDestinationForMovement.mockClear();
+    cattle.findOpenOccupancyForMovement.mockClear();
+    cattle.createMovement.mockClear();
+    cattle.openMovementOccupancy.mockClear();
+    cattle.createMovementEvent.mockClear();
+    cattle.completeMovementIdempotency.mockClear();
+    database.transaction.mockClear();
   }
 
   reset();
@@ -712,6 +869,7 @@ export function createMockRepositories() {
     chat,
     financial,
     cattle,
+    database,
     reset,
     now: new Date(SEED_CLOCK),
   };

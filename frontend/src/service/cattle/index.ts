@@ -1,7 +1,7 @@
 import type { AxiosResponse } from "axios";
 import { client } from "../client";
-import type { CattleLotPayload, PaddockPayload } from "./payloads";
-import type { CattleLot, Paddock } from "./responses";
+import type { CattleLotPayload, CattleMovementPayload, PaddockPayload } from "./payloads";
+import type { CattleLot, CattleMovementResult, Paddock } from "./responses";
 
 export const cattleEndpoints = {
   lots: (signal?: AbortSignal): Promise<AxiosResponse<CattleLot[]>> =>
@@ -29,4 +29,8 @@ export const cattleEndpoints = {
       paddockId,
       startedAt,
     }),
+  moveLot: (
+    payload: CattleMovementPayload,
+  ): Promise<AxiosResponse<CattleMovementResult>> =>
+    client.post("/cattle/movements", payload),
 };

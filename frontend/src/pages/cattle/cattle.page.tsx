@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { cattleEndpoints } from "../../service/cattle";
 import type {
   CattleLotPayload,
+  CattleMovementPayload,
   PaddockPayload,
 } from "../../service/cattle/payloads";
 import type {
@@ -26,7 +27,8 @@ const categoryLabels: Record<CattleCategory, string> = {
 type Editor =
   | { kind: "lot"; item?: CattleLot }
   | { kind: "paddock"; item?: Paddock }
-  | { kind: "placement"; lot: CattleLot };
+  | { kind: "placement"; lot: CattleLot }
+  | { kind: "movement"; lot: CattleLot };
 
 function localDate(): string {
   const now = new Date();
@@ -112,6 +114,7 @@ export function CattlePage() {
           error={lots.isError}
           onEdit={(item) => setEditor({ kind: "lot", item })}
           onPlace={(lot) => setEditor({ kind: "placement", lot })}
+          onMove={(lot) => setEditor({ kind: "movement", lot })}
         />
       ) : (
         <PaddockView
@@ -136,16 +139,25 @@ export function CattlePage() {
           saved={refresh}
         />
       )}
+      {editor?.kind === "movement" && (
+        <MovementEditor
+          lot={editor.lot}
+          paddocks={paddocks.data ?? []}
+          close={() => setEditor(null)}
+          saved={refresh}
+        />
+      )}
     </section>
   );
 }
 
-function LotView({ lots, pending, error, onEdit, onPlace }: {
+function LotView({ lots, pending, error, onEdit, onPlace, onMove }: {
   lots?: CattleLot[];
   pending: boolean;
   error: boolean;
   onEdit(item: CattleLot): void;
   onPlace(item: CattleLot): void;
+  onMove(item: CattleLot): void;
 }) {
   if (pending) return <p className={styles.status}>Reunindo os lotes…</p>;
   if (error) return <p className={styles.error}>Não foi possível carregar os lotes.</p>;
@@ -166,6 +178,7 @@ function LotView({ lots, pending, error, onEdit, onPlace }: {
       </div>
       <div className={styles.rowActions}>
         {!lot.currentOccupancy && lot.active && <button onClick={() => onPlace(lot)}>Colocar no pasto</button>}
+        {lot.currentOccupancy && lot.active && <button onClick={() => onMove(lot)}>Mover lote</button>}
         <button onClick={() => onEdit(lot)}>Editar</button>
       </div>
     </article>)}
@@ -282,6 +295,51 @@ function PlacementEditor({ lot, paddocks, close, saved }: { lot: CattleLot; padd
       {!available.length && <p className={styles.formError}>Cadastre ou ative um pasto antes de colocar este lote.</p>}
       {mutation.isError && <p className={styles.formError}>{errorMessage(mutation.error)}</p>}
       <footer><button type="button" onClick={close}>Cancelar</button><button className={styles.primary} disabled={!available.length || mutation.isPending}>Confirmar entrada</button></footer>
+    </form>
+  </EditorShell>;
+}
+
+function MovementEditor({ lot, paddocks, close, saved }: { lot: CattleLot; paddocks: Paddock[]; close(): void; saved(): void }) {
+  const current = lot.currentOccupancy!;
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
+  const destinations = paddocks.filter(
+    (paddock) => paddock.active && paddock.id !== current.paddock.id,
+  );
+  type Form = { toPaddockId: string; occurredAt: string; reason: string; notes: string };
+  const form = useForm<Form>({ defaultValues: {
+    toPaddockId: destinations[0]?.id ?? "",
+    occurredAt: localDate(),
+    reason: "",
+    notes: "",
+  }});
+  const mutation = useMutation({
+    mutationFn: (payload: CattleMovementPayload) => cattleEndpoints.moveLot(payload),
+    onSuccess: saved,
+  });
+
+  return <EditorShell title={`Mover ${lot.name}`} eyebrow="Movimentação de rebanho" close={close}>
+    <div className={styles.movementRoute}>
+      <div><span>Origem atual</span><strong>{current.paddock.name}</strong></div>
+      <b aria-hidden="true">→</b>
+      <div><span>Lote em trânsito</span><strong>{lot.headCount} cabeças</strong></div>
+    </div>
+    <form onSubmit={form.handleSubmit((values) => mutation.mutate({
+      lotId: lot.id,
+      fromPaddockId: current.paddock.id,
+      toPaddockId: values.toPaddockId,
+      occurredAt: `${values.occurredAt}T12:00:00.000Z`,
+      reason: values.reason || null,
+      notes: values.notes || null,
+      idempotencyKey,
+    }))}>
+      <label><span>Pasto de destino</span><select {...form.register("toPaddockId", { required: true })}>{destinations.map((paddock) => <option key={paddock.id} value={paddock.id}>{paddock.name}{paddock.occupancies.length ? " · ocupado" : " · disponível"}</option>)}</select></label>
+      <label><span>Quando aconteceu</span><input type="date" {...form.register("occurredAt", { required: true })} /></label>
+      <label><span>Motivo</span><input {...form.register("reason")} placeholder="Ex.: fim do ciclo de pastejo" /></label>
+      <label><span>Observações</span><textarea {...form.register("notes")} rows={3} /></label>
+      {!destinations.length && <p className={styles.formError}>Não há outro pasto ativo disponível.</p>}
+      {mutation.isError && <p className={styles.formError}>{errorMessage(mutation.error)}</p>}
+      <p className={styles.auditNote}>Esta ação fecha a ocupação atual e abre um novo intervalo no histórico do lote.</p>
+      <footer><button type="button" onClick={close}>Cancelar</button><button className={styles.primary} disabled={!destinations.length || mutation.isPending}>{mutation.isPending ? "Registrando…" : "Confirmar movimento"}</button></footer>
     </form>
   </EditorShell>;
 }

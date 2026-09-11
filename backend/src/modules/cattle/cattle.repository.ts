@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { FarmAreaType, type Prisma } from '@prisma/client';
+import {
+  type ActorType,
+  type DomainEventSource,
+  FarmAreaType,
+  type Prisma,
+} from '@prisma/client';
 import { DatabaseService } from '../database/database.service';
 
 const occupancy = {
@@ -126,6 +131,94 @@ export class CattleRepository {
         paddock: { select: { id: true, name: true } },
         lot: { select: { id: true, name: true, headCount: true } },
       },
+    });
+  }
+
+  findMovementIdempotency(farmId: string, key: string) {
+    return this.db.client.idempotencyKey.findUnique({
+      where: {
+        farmId_scope_key: { farmId, scope: 'cattle.move-lot', key },
+      },
+    });
+  }
+
+  createMovementIdempotency(farmId: string, key: string, requestHash: string) {
+    return this.db.client.idempotencyKey.create({
+      data: { farmId, scope: 'cattle.move-lot', key, requestHash },
+    });
+  }
+
+  completeMovementIdempotency(id: string, result: Prisma.InputJsonValue) {
+    return this.db.client.idempotencyKey.update({
+      where: { id },
+      data: { result, completedAt: new Date() },
+    });
+  }
+
+  findLotForMovement(farmId: string, id: string) {
+    return this.db.client.cattleLot.findFirst({
+      where: { farmId, id },
+      select: { id: true, name: true, headCount: true, active: true },
+    });
+  }
+
+  findDestinationForMovement(farmId: string, id: string) {
+    return this.db.client.farmArea.findFirst({
+      where: { farmId, id, type: FarmAreaType.PASTURE },
+      select: { id: true, name: true, active: true },
+    });
+  }
+
+  findOpenOccupancyForMovement(farmId: string, lotId: string) {
+    return this.db.client.paddockOccupancy.findFirst({
+      where: { farmId, lotId, endedAt: null },
+      select: {
+        id: true,
+        paddockId: true,
+        startedAt: true,
+        paddock: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  closeOccupancy(id: string, farmId: string, endedAt: Date) {
+    return this.db.client.paddockOccupancy.updateMany({
+      where: { id, farmId, endedAt: null },
+      data: { endedAt },
+    });
+  }
+
+  createMovement(data: {
+    farmId: string;
+    lotId: string;
+    fromPaddockId: string;
+    toPaddockId: string;
+    headCount: number;
+    occurredAt: Date;
+    actorType: ActorType;
+    actorId: string;
+    source: DomainEventSource;
+    reason: string | null;
+    notes: string | null;
+    correlationId: string;
+  }) {
+    return this.db.client.cattleMovement.create({ data });
+  }
+
+  openMovementOccupancy(data: {
+    farmId: string;
+    lotId: string;
+    paddockId: string;
+    startedAt: Date;
+    correlationId: string;
+  }) {
+    return this.db.client.paddockOccupancy.create({ data });
+  }
+
+  createMovementEvent(data: Prisma.DomainEventUncheckedCreateInput) {
+    return this.db.client.domainEvent.create({
+      data: { ...data, outbox: { create: {} } },
+      include: { outbox: true },
     });
   }
 }

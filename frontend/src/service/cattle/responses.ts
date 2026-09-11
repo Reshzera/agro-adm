@@ -47,3 +47,21 @@ export type Paddock = {
     stockingRateHeadPerHa: ResolvedSetting<string>;
   };
 };
+
+export type CattleMovementResult = {
+  movement: {
+    id: string;
+    lot: { id: string; name: string; headCount: number };
+    fromPaddock: { id: string; name: string };
+    toPaddock: { id: string; name: string };
+    occurredAt: string;
+    recordedAt: string;
+    reason: string | null;
+    notes: string | null;
+  };
+  event: {
+    id: string;
+    correlationId: string;
+    causationId: string | null;
+  };
+};

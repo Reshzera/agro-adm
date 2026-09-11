@@ -20,3 +20,13 @@ export type PaddockPayload = {
   forageType?: string | null;
   active?: boolean;
 };
+
+export type CattleMovementPayload = {
+  lotId: string;
+  fromPaddockId: string;
+  toPaddockId: string;
+  occurredAt: string;
+  reason?: string | null;
+  notes?: string | null;
+  idempotencyKey: string;
+};

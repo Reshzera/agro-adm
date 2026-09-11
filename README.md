@@ -112,10 +112,14 @@ também estiver em branco. Quem grava avaliação de regra tem que gravar junto 
 valor resolvido e de onde ele veio — mudar o limite depois não pode reescrever a
 explicação de ontem.
 
-**Trilha de evento nasce vazia.** `domain_event`, `outbox_message`,
-`rule_evaluation`, `farm_attention_item` e `idempotency_key` existem desde a
-migration `20260911164247_cattle_paddock_and_event_schema` e ninguém escreve
-nelas ainda — os tickets 07 a 09 escrevem. O evento separa quando aconteceu
+Movimentar um lote fecha e abre esses intervalos no mesmo comando que grava
+`cattle_movement`, `domain_event`, `outbox_message` e o resultado em
+`idempotency_key`. A tela aceita data retroativa, e repetir a mesma chave devolve
+o primeiro resultado sem duplicar histórico.
+
+**A trilha de evento começa no movimento de gado.** `rule_evaluation` e
+`farm_attention_item` ainda nascem vazias — os tickets 08 e 09 escrevem nelas.
+O evento separa quando aconteceu
 (`occurredAt`, que aceita lançamento retroativo) de quando foi registrado
 (`recordedAt`), e carrega `correlationId`/`causationId` mais `actorType`
 (`USER`, `AGENT`, `SYSTEM`, `INTEGRATION`) — é o que liga movimento, regra e

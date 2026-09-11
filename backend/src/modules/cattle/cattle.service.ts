@@ -1,16 +1,31 @@
 import { Injectable } from '@nestjs/common';
-import { FarmAreaType, type Prisma } from '@prisma/client';
+import {
+  ActorType,
+  DomainEventSource,
+  FarmAreaType,
+  type Prisma,
+} from '@prisma/client';
+import { createHash, randomUUID } from 'node:crypto';
+import { DatabaseService } from '../database/database.service';
+import {
+  type MoveCattleLotCommand,
+  parseMoveCattleLotCommand,
+} from './commands/move-cattle-lot.command';
 import type { CreateCattleLotDto } from './dto/create-cattle-lot.dto';
 import type { CreatePaddockDto } from './dto/create-paddock.dto';
 import type { UpdateCattleLotDto } from './dto/update-cattle-lot.dto';
 import type { UpdatePaddockDto } from './dto/update-paddock.dto';
 import { CattleResourceNotFoundError } from './errors/cattle-resource-not-found.error';
+import { CattleMovementInvariantError } from './errors/cattle-movement-invariant.error';
 import { InvalidCattleOperationError } from './errors/invalid-cattle-operation.error';
 import { CattleRepository } from './cattle.repository';
 
 @Injectable()
 export class CattleService {
-  constructor(private readonly repository: CattleRepository) {}
+  constructor(
+    private readonly repository: CattleRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   async listLots(farmId: string) {
     return (await this.repository.listLots(farmId)).map((lot) =>
@@ -150,6 +165,183 @@ export class CattleService {
     });
   }
 
+  moveLot(
+    farmId: string,
+    actorId: string,
+    rawInput: unknown,
+    source: DomainEventSource = DomainEventSource.WEB,
+    actorType: ActorType = ActorType.USER,
+  ) {
+    const input = parseMoveCattleLotCommand(rawInput);
+    const requestHash = this.movementRequestHash(input);
+
+    return this.db.transaction(async () => {
+      const replay = await this.repository.findMovementIdempotency(
+        farmId,
+        input.idempotencyKey,
+      );
+      if (replay) {
+        if (replay.requestHash !== requestHash) {
+          throw new CattleMovementInvariantError(
+            'movement.idempotency_key_reused',
+            'This idempotency key was already used for a different movement.',
+          );
+        }
+        if (replay.completedAt && replay.result) return replay.result;
+        throw new CattleMovementInvariantError(
+          'movement.concurrent_change',
+          'This movement is already being processed.',
+        );
+      }
+
+      const [lot, destination, current] = await Promise.all([
+        this.repository.findLotForMovement(farmId, input.lotId),
+        this.repository.findDestinationForMovement(farmId, input.toPaddockId),
+        this.repository.findOpenOccupancyForMovement(farmId, input.lotId),
+      ]);
+
+      if (!lot) {
+        throw new CattleMovementInvariantError(
+          'movement.lot_exists',
+          'The cattle lot does not exist in this farm.',
+        );
+      }
+      if (!lot.active) {
+        throw new CattleMovementInvariantError(
+          'movement.lot_active',
+          'An inactive cattle lot cannot be moved.',
+        );
+      }
+      if (!destination) {
+        throw new CattleMovementInvariantError(
+          'movement.destination_exists',
+          'The destination paddock does not exist in this farm.',
+        );
+      }
+      if (!destination.active) {
+        throw new CattleMovementInvariantError(
+          'movement.destination_active',
+          'The destination paddock is inactive.',
+        );
+      }
+      if (!current || current.paddockId !== input.fromPaddockId) {
+        throw new CattleMovementInvariantError(
+          'movement.source_matches_current_location',
+          'The stated origin does not match the lot current occupancy.',
+        );
+      }
+      if (current.paddockId === destination.id) {
+        throw new CattleMovementInvariantError(
+          'movement.destination_is_different',
+          'The destination must be different from the current paddock.',
+        );
+      }
+
+      const occurredAt = new Date(input.occurredAt);
+      if (occurredAt < current.startedAt) {
+        throw new CattleMovementInvariantError(
+          'movement.occurred_after_occupancy_started',
+          'The movement cannot occur before the current occupancy started.',
+        );
+      }
+
+      // No write occurs before every business invariant above has passed.
+      const idempotency = await this.repository.createMovementIdempotency(
+        farmId,
+        input.idempotencyKey,
+        requestHash,
+      );
+      const correlationId = randomUUID();
+      const closed = await this.repository.closeOccupancy(
+        current.id,
+        farmId,
+        occurredAt,
+      );
+      if (closed.count !== 1) {
+        throw new CattleMovementInvariantError(
+          'movement.concurrent_change',
+          'The lot occupancy changed while the movement was being recorded.',
+        );
+      }
+
+      const movement = await this.repository.createMovement({
+        farmId,
+        lotId: lot.id,
+        fromPaddockId: current.paddockId,
+        toPaddockId: destination.id,
+        headCount: lot.headCount,
+        occurredAt,
+        actorType,
+        actorId,
+        source,
+        reason: input.reason ?? null,
+        notes: input.notes ?? null,
+        correlationId,
+      });
+      const occupancy = await this.repository.openMovementOccupancy({
+        farmId,
+        lotId: lot.id,
+        paddockId: destination.id,
+        startedAt: occurredAt,
+        correlationId,
+      });
+      const event = await this.repository.createMovementEvent({
+        farmId,
+        eventType: 'CattleLotMoved',
+        eventVersion: 1,
+        aggregateType: 'CattleLot',
+        aggregateId: lot.id,
+        actorType,
+        actorId,
+        source,
+        correlationId,
+        causationId: input.causationId ?? input.idempotencyKey,
+        occurredAt,
+        payload: {
+          movementId: movement.id,
+          lotId: lot.id,
+          lotName: lot.name,
+          headCount: lot.headCount,
+          fromPaddockId: current.paddockId,
+          fromPaddockName: current.paddock.name,
+          toPaddockId: destination.id,
+          toPaddockName: destination.name,
+          reason: input.reason ?? null,
+          notes: input.notes ?? null,
+        },
+      });
+
+      const result = {
+        movement: {
+          id: movement.id,
+          lot: { id: lot.id, name: lot.name, headCount: lot.headCount },
+          fromPaddock: current.paddock,
+          toPaddock: { id: destination.id, name: destination.name },
+          occurredAt: movement.occurredAt.toISOString(),
+          recordedAt: movement.recordedAt.toISOString(),
+          reason: movement.reason,
+          notes: movement.notes,
+        },
+        occupancy: {
+          id: occupancy.id,
+          startedAt: occupancy.startedAt.toISOString(),
+        },
+        event: {
+          id: event.id,
+          eventType: event.eventType,
+          correlationId: event.correlationId,
+          causationId: event.causationId,
+          occurredAt: event.occurredAt.toISOString(),
+          recordedAt: event.recordedAt.toISOString(),
+        },
+        outbox: { id: event.outbox!.id, status: event.outbox!.status },
+      } satisfies Prisma.InputJsonObject;
+
+      await this.repository.completeMovementIdempotency(idempotency.id, result);
+      return result;
+    });
+  }
+
   private presentLot<T extends { occupancies: unknown[] }>(lot: T) {
     const { occupancies, ...fields } = lot;
     return { ...fields, currentOccupancy: occupancies[0] ?? null };
@@ -217,5 +409,9 @@ export class CattleService {
 
   private dateOnly(value: string): Date {
     return new Date(`${value}T00:00:00.000Z`);
+  }
+
+  private movementRequestHash(input: MoveCattleLotCommand): string {
+    return createHash('sha256').update(JSON.stringify(input)).digest('hex');
   }
 }

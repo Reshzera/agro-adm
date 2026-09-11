@@ -60,6 +60,11 @@ export class CattleController {
     );
   }
 
+  @Post('movements')
+  moveLot(@Req() request: RequestWithFarmContext, @Body() body: unknown) {
+    return this.cattle.moveLot(request.farmId!, request.user!.id, body);
+  }
+
   @Get('paddocks')
   listPaddocks(@Req() request: RequestWithFarmContext) {
     return this.cattle.listPaddocks(request.farmId!);
