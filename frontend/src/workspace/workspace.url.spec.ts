@@ -20,6 +20,25 @@ describe('workspace links', () => {
     expect(viewFromSearchParams(new URLSearchParams(url(view)))).toEqual(view)
   })
 
+  it('keeps the chart presentation in the address', () => {
+    const view: WorkspaceView = {
+      kind: 'chart',
+      dataset: 'expenses',
+      shape: 'pie',
+      groupBy: 'category',
+      measure: 'amount',
+      filters: { from: '2026-03-01' },
+    }
+
+    expect(url(view)).toBe('chat=chat-1&view=expenses&chart=pie&by=category&measure=amount&from=2026-03-01')
+    expect(viewFromSearchParams(new URLSearchParams(url(view)))).toEqual(view)
+  })
+
+  it('ignores an address asking for a chart the panel cannot draw', () => {
+    expect(viewFromSearchParams(new URLSearchParams('view=expenses&chart=scatter&by=category&measure=amount'))).toBeNull()
+    expect(viewFromSearchParams(new URLSearchParams('view=expenses&chart=line&by=category&measure=amount'))).toBeNull()
+  })
+
   it('drops the panel from the address when nothing is open, keeping the conversation', () => {
     const params = applyViewToSearchParams(new URLSearchParams('chat=chat-1&view=expenses&from=2026-03-01'), null)
 

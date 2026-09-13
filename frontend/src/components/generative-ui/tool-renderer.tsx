@@ -65,12 +65,15 @@ export function ToolRenderer({
       return null;
     case "tool-openWorkspaceTable":
     case "tool-openWorkspaceEntity":
+    case "tool-openWorkspaceChart":
       return <WorkspaceNotice part={part} />;
     case "tool-showManualForm":
       return (
         <ManualForm
           part={part}
-          onSubmit={(form) => actions.submitToolOutput("showManualForm", part.toolCallId, form)}
+          onSubmit={(form) =>
+            actions.submitToolOutput("showManualForm", part.toolCallId, form)
+          }
         />
       );
     default:

@@ -2,15 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import {
   datasetForEntity,
   entityForDataset,
+  groupingLabels,
+  measureLabels,
   type WorkspaceEntityView,
   type WorkspaceTableView,
   type WorkspaceView,
 } from '../../../workspace/workspace.commands'
 import { useWorkspace, workspaceStore } from '../../../workspace/workspace.store'
 import { filterSummary, workspaceDatasetDefinitions, type WorkspaceRow } from '../workspace.datasets'
+import { WorkspaceChart } from '../workspace-chart/workspace-chart'
 import styles from './workspace-panel.module.scss'
 
-function useRows(view: WorkspaceView) {
+function useRows(view: WorkspaceTableView | WorkspaceEntityView) {
   const dataset = view.kind === 'table' ? view.dataset : datasetForEntity(view.entityType)
   const filters = view.kind === 'table' ? view.filters : {}
   return useQuery({
@@ -77,10 +80,13 @@ function heading(view: WorkspaceView): { title: string; subtitle: string } {
       subtitle: 'ficha do registro',
     }
   const definition = workspaceDatasetDefinitions[view.dataset]
-  return {
-    title: view.title ?? definition.label,
-    subtitle: definition.usesFilters ? filterSummary(view.filters) || 'sem filtro' : 'tudo que está cadastrado',
-  }
+  const period = definition.usesFilters ? filterSummary(view.filters) || 'sem filtro' : 'tudo que está cadastrado'
+  if (view.kind === 'chart')
+    return {
+      title: view.title ?? `${definition.label} por ${groupingLabels[view.groupBy]}`,
+      subtitle: `${measureLabels[view.measure]} · ${period}`,
+    }
+  return { title: view.title ?? definition.label, subtitle: period }
 }
 
 export function WorkspacePanel() {
@@ -105,6 +111,8 @@ export function WorkspacePanel() {
     </header>
     {current === null
       ? <p className={styles.blank}>Peça os números no chat — a tabela abre aqui e a conversa fica só com a resposta.</p>
-      : current.kind === 'table' ? <WorkspaceTable view={current} /> : <WorkspaceEntity view={current} />}
+      : current.kind === 'table' ? <WorkspaceTable view={current} />
+        : current.kind === 'chart' ? <WorkspaceChart view={current} />
+          : <WorkspaceEntity view={current} />}
   </aside>
 }

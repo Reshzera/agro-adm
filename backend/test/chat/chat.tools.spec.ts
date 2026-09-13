@@ -12,6 +12,7 @@ import { getFarmRegistry } from '../../src/modules/chat/tools/get-farm/registry'
 import { getFinancialSummaryRegistry } from '../../src/modules/chat/tools/get-financial-summary/registry';
 import { getRevenueRegistry } from '../../src/modules/chat/tools/get-revenue/registry';
 import { moveCattleLotRegistry } from '../../src/modules/chat/tools/move-cattle-lot/registry';
+import { openWorkspaceChartRegistry } from '../../src/modules/chat/tools/open-workspace-chart/registry';
 import { openWorkspaceEntityRegistry } from '../../src/modules/chat/tools/open-workspace-entity/registry';
 import { openWorkspaceTableRegistry } from '../../src/modules/chat/tools/open-workspace-table/registry';
 import { showManualFormRegistry } from '../../src/modules/chat/tools/show-manual-form/registry';
@@ -195,6 +196,7 @@ describe('chat financial tools', () => {
       moveCattleLotRegistry.inputSchema,
       openWorkspaceTableRegistry.inputSchema,
       openWorkspaceEntityRegistry.inputSchema,
+      openWorkspaceChartRegistry.inputSchema,
     ];
 
     for (const schema of schemas) {
@@ -367,6 +369,7 @@ describe('workspace tools', () => {
 
     expect(tools.openWorkspaceTable.execute).toBeUndefined();
     expect(tools.openWorkspaceEntity.execute).toBeUndefined();
+    expect(tools.openWorkspaceChart.execute).toBeUndefined();
   });
 
   it('accepts a command that states the whole view', () => {
@@ -404,6 +407,39 @@ describe('workspace tools', () => {
       openWorkspaceTableRegistry.inputSchema.safeParse({
         dataset: 'expenses',
         filters: { from: 'semana passada' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('lets the model choose only the presentation of a chart', () => {
+    expect(
+      openWorkspaceChartRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        shape: 'line',
+        groupBy: 'month',
+        measure: 'amount',
+        title: 'Gasto mês a mês',
+        filters: { from: '2026-01-01', to: '2026-03-31' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('refuses a chart carrying its own numbers or a shape it cannot draw', () => {
+    expect(
+      openWorkspaceChartRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        shape: 'bar',
+        groupBy: 'category',
+        measure: 'amount',
+        series: [{ label: 'Combustível', value: '4800.00' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      openWorkspaceChartRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        shape: 'scatter',
+        groupBy: 'category',
+        measure: 'amount',
       }).success,
     ).toBe(false);
   });

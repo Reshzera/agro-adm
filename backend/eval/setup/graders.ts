@@ -42,6 +42,7 @@ const READ_ONLY_TOOLS = [
   'showManualForm',
   'openWorkspaceTable',
   'openWorkspaceEntity',
+  'openWorkspaceChart',
 ];
 
 export function noWrite(): Grader {

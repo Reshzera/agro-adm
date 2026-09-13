@@ -53,6 +53,95 @@ describe('workspace command validation', () => {
     expect(parseWorkspaceCommand('openWorkspaceTable', { dataset: 'expenses', filters: { from: 'semana passada' } }).ok).toBe(false)
   })
 
+  it('accepts a chart command that states shape, grouping and measure', () => {
+    const parsed = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'expenses',
+      shape: 'bar',
+      groupBy: 'category',
+      measure: 'amount',
+      title: 'Gasto por categoria',
+      filters: { from: '2026-01-01', to: '2026-03-31' },
+    })
+
+    expect(parsed).toEqual({
+      ok: true,
+      view: {
+        kind: 'chart',
+        dataset: 'expenses',
+        shape: 'bar',
+        groupBy: 'category',
+        measure: 'amount',
+        title: 'Gasto por categoria',
+        filters: { from: '2026-01-01', to: '2026-03-31' },
+      },
+    })
+  })
+
+  it('rejects a chart shape it cannot draw, saying which ones it draws', () => {
+    const parsed = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'expenses',
+      shape: 'scatter',
+      groupBy: 'category',
+      measure: 'amount',
+    })
+
+    expect(parsed.ok).toBe(false)
+    expect(parsed).toHaveProperty('error', expect.stringContaining('bar, line, pie'))
+  })
+
+  it('rejects a shape that does not fit the grouping', () => {
+    const line = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'expenses',
+      shape: 'line',
+      groupBy: 'category',
+      measure: 'amount',
+    })
+    const pie = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'expenses',
+      shape: 'pie',
+      groupBy: 'month',
+      measure: 'amount',
+    })
+
+    expect(line.ok).toBe(false)
+    expect(line).toHaveProperty('error', expect.stringContaining('bar'))
+    expect(pie.ok).toBe(false)
+    expect(pie).toHaveProperty('error', expect.stringContaining('line'))
+  })
+
+  it('rejects a grouping or a measure the dataset does not have', () => {
+    const grouping = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'revenues',
+      shape: 'pie',
+      groupBy: 'category',
+      measure: 'amount',
+    })
+    const measure = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'cattleLots',
+      shape: 'bar',
+      groupBy: 'paddock',
+      measure: 'amount',
+    })
+
+    expect(grouping.ok).toBe(false)
+    expect(grouping).toHaveProperty('error', expect.stringContaining('month'))
+    expect(measure.ok).toBe(false)
+    expect(measure).toHaveProperty('error', expect.stringContaining('headCount'))
+  })
+
+  it('rejects a chart command that leaves the presentation open', () => {
+    expect(parseWorkspaceCommand('openWorkspaceChart', { dataset: 'expenses', shape: 'bar' }).ok).toBe(false)
+    expect(
+      parseWorkspaceCommand('openWorkspaceChart', {
+        dataset: 'expenses',
+        shape: 'bar',
+        groupBy: 'category',
+        measure: 'amount',
+        stack: true,
+      }).ok,
+    ).toBe(false)
+  })
+
   it('rejects an entity without an id', () => {
     expect(parseWorkspaceCommand('openWorkspaceEntity', { entityType: 'expense', entityId: '  ' }).ok).toBe(false)
     expect(parseWorkspaceCommand('openWorkspaceEntity', { entityType: 'tractor', entityId: 'x' }).ok).toBe(false)

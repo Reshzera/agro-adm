@@ -6,10 +6,10 @@ The numbers are never the model's. They come from the same deterministic queries
 
 **Blocked by:** 11
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Bar, line and pie charts render in the workspace panel from a single charting tool
-- [ ] Every value displayed comes from a query result, never from the model
-- [ ] Changing the grouping or the period redraws the existing chart rather than opening a second one
-- [ ] A requested chart shape that is not supported degrades with a clear message instead of a broken panel
-- [ ] Charts are readable in both light and dark presentation
+- [x] Bar, line and pie charts render in the workspace panel from a single charting tool
+- [x] Every value displayed comes from a query result, never from the model
+- [x] Changing the grouping or the period redraws the existing chart rather than opening a second one
+- [x] A requested chart shape that is not supported degrades with a clear message instead of a broken panel
+- [x] Charts are readable in both light and dark presentation

@@ -68,7 +68,7 @@ limitado (`WORKSPACE_HISTORY_LIMIT`, dez visões).
 **O painel é do agente: ele escreve, o produtor lê.** Como o agente não enxerga o
 que o produtor mexeu na tela por conta própria, todo comando descreve a visão
 inteira — dataset, título e todos os filtros valendo. Não existe comando de
-delta ("acrescenta o filtro tal"): as duas tools são `.strict()`, então uma
+delta ("acrescenta o filtro tal"): as tools de painel são `.strict()`, então uma
 chave extra é recusada em vez de aplicada pela metade. O período também precisa
 vir em `YYYY-MM-DD`: o navegador não resolve "semana passada", e quem converte é
 o modelo, com a data que já está no system prompt.
@@ -82,10 +82,11 @@ de um render ter acontecido. O reducer e a validação de comando
 nesse caso a tool devolve `{ status: 'rejected', error }` e o agente pode se
 corrigir na mesma volta.
 
-Página, entidade e período vão para a URL (`?chat=…&view=expenses&from=…&to=…`),
-então o link reabre a mesma visão; um endereço que pede o que o painel não sabe
-mostrar simplesmente não abre nada. Os números do painel vêm das mesmas rotas
-REST das telas manuais — o modelo escolhe a visão, nunca os valores.
+Página, entidade e período vão para a URL (`?chat=…&view=expenses&from=…&to=…`, e
+o gráfico leva `&chart=pie&by=category&measure=amount`), então o link reabre a
+mesma visão; um endereço que pede o que o painel não sabe mostrar simplesmente
+não abre nada. Os números do painel vêm das mesmas rotas REST das telas manuais —
+o modelo escolhe a visão, nunca os valores.
 
 **A tela `/app/financeiro` continua igual e sem agente nenhum.** A duplicação
 com o painel é de propósito e temporária.
@@ -95,6 +96,28 @@ resultado com `addToolOutput`. Esse caminho deixou de ser exclusivo do
 `showManualForm` — a lista de tools executadas no navegador fica em
 `browserExecutedTools` (`frontend/src/components/chat/conversation/conversation.tsx`)
 e o envio do resultado leva o nome da tool como parâmetro.
+
+## Gráficos no painel
+
+`openWorkspaceChart` é a única tool de gráfico: uma pergunta vira barra, linha ou
+pizza no mesmo painel, e trocar o agrupamento ou o período redesenha a visão em
+vez de abrir uma segunda. **O modelo escolhe só a apresentação** — `shape`,
+`groupBy` e `measure`. Os valores saem das mesmas consultas REST que enchem as
+tabelas: o navegador busca os lançamentos, soma por grupo
+(`frontend/src/workspace/workspace.series.ts`) e desenha. Nenhum número chega
+pelo comando, e a tool recusa qualquer chave a mais.
+
+Cada conjunto diz o que sabe medir (`workspaceChartCapabilities`): despesas por
+`category`, `month` ou `day`; receitas por `month` ou `day`; lotes por
+`cattleCategory` ou `paddock`; pastos por `paddock`. Forma e agrupamento também
+precisam combinar — `line` só ao longo do tempo, `pie` só entre categorias. O que
+não combina não quebra o painel: a tool devolve `{ status: 'rejected', error }`
+dizendo o que dá para pedir, o painel continua com a visão anterior e o agente se
+corrige na mesma volta.
+
+As cores vêm dos tokens do tema (`--color-accent`, `--color-highlight`,
+`--color-danger` e misturas), então o mesmo gráfico se lê no claro e no escuro sem
+segunda paleta.
 
 ## Scripts da raiz
 

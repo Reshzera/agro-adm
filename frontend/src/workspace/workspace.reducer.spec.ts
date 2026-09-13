@@ -14,6 +14,10 @@ function table(from: string): WorkspaceView {
 
 const lot: WorkspaceView = { kind: 'entity', entityType: 'cattleLot', entityId: 'seed-lot-12' }
 
+function chart(groupBy: 'category' | 'month'): WorkspaceView {
+  return { kind: 'chart', dataset: 'expenses', shape: 'bar', groupBy, measure: 'amount', filters: {} }
+}
+
 function openAll(views: WorkspaceView[], state: WorkspaceState = emptyWorkspace): WorkspaceState {
   return views.reduce((current, view) => workspaceReducer(current, { type: 'open', view }), state)
 }
@@ -36,6 +40,19 @@ describe('workspace reducer', () => {
 
     expect(again).toBe(opened)
     expect(again.history).toEqual([])
+  })
+
+  it('redraws the chart in place when the grouping changes', () => {
+    const state = openAll([chart('category'), chart('month')])
+
+    expect(state.current).toEqual(chart('month'))
+    expect(state.history).toEqual([chart('category')])
+  })
+
+  it('treats the same chart command as the chart already on screen', () => {
+    const opened = openAll([chart('category')])
+
+    expect(workspaceReducer(opened, { type: 'open', view: chart('category') })).toBe(opened)
   })
 
   it('goes back to the previous view', () => {

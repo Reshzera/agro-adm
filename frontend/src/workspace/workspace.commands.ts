@@ -3,7 +3,15 @@ import type { ExpenseCategory } from '../service/financial/responses'
 
 export const workspaceDatasets = ['expenses', 'revenues', 'cattleLots', 'paddocks'] as const
 export const workspaceEntities = ['expense', 'revenue', 'cattleLot', 'paddock'] as const
-export const workspaceToolNames = ['openWorkspaceTable', 'openWorkspaceEntity'] as const
+export const workspaceToolNames = [
+  'openWorkspaceTable',
+  'openWorkspaceEntity',
+  'openWorkspaceChart',
+] as const
+export const workspaceChartShapes = ['bar', 'line', 'pie'] as const
+export const workspaceGroupings = ['category', 'month', 'day', 'paddock', 'cattleCategory'] as const
+export const workspaceMeasures = ['amount', 'count', 'headCount', 'hectares'] as const
+export const temporalGroupings = ['month', 'day'] as const
 
 const expenseCategories = [
   'FUEL',
@@ -20,6 +28,38 @@ const expenseCategories = [
 export type WorkspaceDataset = (typeof workspaceDatasets)[number]
 export type WorkspaceEntityType = (typeof workspaceEntities)[number]
 export type WorkspaceToolName = (typeof workspaceToolNames)[number]
+export type WorkspaceChartShape = (typeof workspaceChartShapes)[number]
+export type WorkspaceGrouping = (typeof workspaceGroupings)[number]
+export type WorkspaceMeasure = (typeof workspaceMeasures)[number]
+
+export const workspaceChartCapabilities: Record<
+  WorkspaceDataset,
+  { groupings: readonly WorkspaceGrouping[]; measures: readonly WorkspaceMeasure[] }
+> = {
+  expenses: { groupings: ['category', 'month', 'day'], measures: ['amount', 'count'] },
+  revenues: { groupings: ['month', 'day'], measures: ['amount', 'count'] },
+  cattleLots: { groupings: ['cattleCategory', 'paddock'], measures: ['headCount', 'count'] },
+  paddocks: { groupings: ['paddock'], measures: ['hectares', 'headCount', 'count'] },
+}
+
+export const groupingLabels: Record<WorkspaceGrouping, string> = {
+  category: 'categoria',
+  month: 'mês',
+  day: 'dia',
+  paddock: 'pasto',
+  cattleCategory: 'categoria do rebanho',
+}
+
+export const measureLabels: Record<WorkspaceMeasure, string> = {
+  amount: 'valor',
+  count: 'quantidade de lançamentos',
+  headCount: 'cabeças',
+  hectares: 'hectares',
+}
+
+export function isTemporalGrouping(grouping: WorkspaceGrouping): boolean {
+  return (temporalGroupings as readonly WorkspaceGrouping[]).includes(grouping)
+}
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'use uma data em YYYY-MM-DD')
 
@@ -34,6 +74,19 @@ const filtersSchema = z
 const tableCommandSchema = z
   .object({
     dataset: z.enum(workspaceDatasets),
+    title: z.string().trim().min(1).max(80).optional(),
+    filters: filtersSchema.optional(),
+  })
+  .strict()
+
+const chartCommandSchema = z
+  .object({
+    dataset: z.enum(workspaceDatasets),
+    shape: z.enum(workspaceChartShapes, {
+      error: `o painel desenha ${workspaceChartShapes.join(', ')} e nada além disso`,
+    }),
+    groupBy: z.enum(workspaceGroupings),
+    measure: z.enum(workspaceMeasures),
     title: z.string().trim().min(1).max(80).optional(),
     filters: filtersSchema.optional(),
   })
@@ -61,7 +114,17 @@ export type WorkspaceEntityView = {
   entityId: string
 }
 
-export type WorkspaceView = WorkspaceTableView | WorkspaceEntityView
+export type WorkspaceChartView = {
+  kind: 'chart'
+  dataset: WorkspaceDataset
+  shape: WorkspaceChartShape
+  groupBy: WorkspaceGrouping
+  measure: WorkspaceMeasure
+  title?: string
+  filters: WorkspaceFilters
+}
+
+export type WorkspaceView = WorkspaceTableView | WorkspaceEntityView | WorkspaceChartView
 
 export type WorkspaceCommandResult = { ok: true; view: WorkspaceView } | { ok: false; error: string }
 
@@ -72,12 +135,45 @@ function rejection(error: z.ZodError): WorkspaceCommandResult {
   return { ok: false, error: `Comando de painel inválido — ${detail}.` }
 }
 
+function unsupportedChart(command: z.infer<typeof chartCommandSchema>): string | null {
+  const capability = workspaceChartCapabilities[command.dataset]
+  if (!capability.groupings.includes(command.groupBy))
+    return `O painel não separa ${command.dataset} por ${command.groupBy}. Nesse conjunto dá para agrupar por ${capability.groupings.join(', ')}.`
+  if (!capability.measures.includes(command.measure))
+    return `O painel não mede ${command.dataset} por ${command.measure}. Nesse conjunto dá para medir ${capability.measures.join(', ')}.`
+  if (command.shape === 'line' && !isTemporalGrouping(command.groupBy))
+    return `Linha só serve para o tempo: agrupe por ${temporalGroupings.join(' ou ')}, ou peça bar para comparar ${command.groupBy}.`
+  if (command.shape === 'pie' && isTemporalGrouping(command.groupBy))
+    return `Pizza reparte um total entre categorias, não ao longo do tempo: para ${command.groupBy} peça line ou bar.`
+  return null
+}
+
 export function parseWorkspaceCommand(tool: string, input: unknown): WorkspaceCommandResult {
   if (tool === 'openWorkspaceTable') {
     const parsed = tableCommandSchema.safeParse(input)
     if (!parsed.success) return rejection(parsed.error)
     const { dataset, title, filters } = parsed.data
     return { ok: true, view: { kind: 'table', dataset, ...(title ? { title } : {}), filters: filters ?? {} } }
+  }
+
+  if (tool === 'openWorkspaceChart') {
+    const parsed = chartCommandSchema.safeParse(input)
+    if (!parsed.success) return rejection(parsed.error)
+    const refused = unsupportedChart(parsed.data)
+    if (refused) return { ok: false, error: refused }
+    const { dataset, shape, groupBy, measure, title, filters } = parsed.data
+    return {
+      ok: true,
+      view: {
+        kind: 'chart',
+        dataset,
+        shape,
+        groupBy,
+        measure,
+        ...(title ? { title } : {}),
+        filters: filters ?? {},
+      },
+    }
   }
 
   if (tool === 'openWorkspaceEntity') {
