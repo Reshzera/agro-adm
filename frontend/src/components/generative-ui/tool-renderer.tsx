@@ -6,6 +6,7 @@ import { LotConfirmation } from "./lot-confirmation/lot-confirmation";
 import { ManualForm } from "./manual-form/manual-form";
 import { MovementConfirmation } from "./movement-confirmation/movement-confirmation";
 import { RevenueChart } from "./revenue-chart/revenue-chart";
+import { WorkspaceNotice } from "./workspace-notice/workspace-notice";
 import styles from "./tool-renderer.module.scss";
 import type {
   Expense,
@@ -62,11 +63,14 @@ export function ToolRenderer({
       return <LotConfirmation part={part} onResolve={actions.approve} />;
     case "tool-getCattleOverview":
       return null;
+    case "tool-openWorkspaceTable":
+    case "tool-openWorkspaceEntity":
+      return <WorkspaceNotice part={part} />;
     case "tool-showManualForm":
       return (
         <ManualForm
           part={part}
-          onSubmit={(form) => actions.submitToolOutput(part.toolCallId, form)}
+          onSubmit={(form) => actions.submitToolOutput("showManualForm", part.toolCallId, form)}
         />
       );
     default:

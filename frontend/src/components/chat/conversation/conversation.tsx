@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -8,11 +8,13 @@ import {
   type UIMessage,
 } from 'ai'
 import { ToolRenderer } from '../../generative-ui/tool-renderer'
+import { useWorkspaceTools } from '../../../workspace/use-workspace-tools'
+import { workspaceToolNames } from '../../../workspace/workspace.commands'
 import { chatEndpoints } from '../../../service/chat'
 import { farmEndpoints } from '../../../service/farm'
 import styles from './conversation.module.scss'
 
-const browserExecutedTools = ['tool-showManualForm']
+const browserExecutedTools = ['showManualForm', ...workspaceToolNames].map((tool) => `tool-${tool}`)
 
 function lastStepWasAnsweredByTheBrowser({ messages }: { messages: UIMessage[] }): boolean {
   const message = messages[messages.length - 1]
@@ -55,6 +57,12 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
       lastStepWasAnsweredByTheBrowser(options),
   })
 
+  const submitToolOutput = useCallback(
+    (tool: string, toolCallId: string, output: unknown) => addToolOutput({ tool, toolCallId, output }),
+    [addToolOutput],
+  )
+  useWorkspaceTools(messages, submitToolOutput)
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const text = input.trim()
@@ -85,7 +93,7 @@ export function Conversation({ chatId, initialMessages, onActivity }: Conversati
             part={part}
             actions={{
               approve: (id, approved) => addToolApprovalResponse({ id, approved }),
-              submitToolOutput: (toolCallId, output) => addToolOutput({ tool: 'showManualForm', toolCallId, output }),
+              submitToolOutput,
             }}
           />
         })}

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"yarn --cwd backend dev\" \"yarn --cwd frontend dev\"",
     "build": "yarn --cwd backend build && yarn --cwd frontend build",
-    "test": "yarn --cwd backend test",
+    "test": "yarn --cwd backend test && yarn --cwd frontend test",
     "eval": "yarn --cwd backend eval",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

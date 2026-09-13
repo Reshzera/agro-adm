@@ -12,6 +12,8 @@ import { getFarmRegistry } from '../../src/modules/chat/tools/get-farm/registry'
 import { getFinancialSummaryRegistry } from '../../src/modules/chat/tools/get-financial-summary/registry';
 import { getRevenueRegistry } from '../../src/modules/chat/tools/get-revenue/registry';
 import { moveCattleLotRegistry } from '../../src/modules/chat/tools/move-cattle-lot/registry';
+import { openWorkspaceEntityRegistry } from '../../src/modules/chat/tools/open-workspace-entity/registry';
+import { openWorkspaceTableRegistry } from '../../src/modules/chat/tools/open-workspace-table/registry';
 import { showManualFormRegistry } from '../../src/modules/chat/tools/show-manual-form/registry';
 import { updateExpenseRegistry } from '../../src/modules/chat/tools/update-expense/registry';
 import { updateFarmRegistry } from '../../src/modules/chat/tools/update-farm/registry';
@@ -191,6 +193,8 @@ describe('chat financial tools', () => {
       getCattleOverviewRegistry.inputSchema,
       createCattleLotRegistry.inputSchema,
       moveCattleLotRegistry.inputSchema,
+      openWorkspaceTableRegistry.inputSchema,
+      openWorkspaceEntityRegistry.inputSchema,
     ];
 
     for (const schema of schemas) {
@@ -352,6 +356,54 @@ describe('chat cattle tools', () => {
         toPaddockId: 'paddock-6',
         occurredAt: '2026-03-16T09:00:00.000Z',
         idempotencyKey: 'chosen-by-the-model',
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe('workspace tools', () => {
+  it('leaves the workspace commands for the browser to run', () => {
+    const { tools } = toolsForTest();
+
+    expect(tools.openWorkspaceTable.execute).toBeUndefined();
+    expect(tools.openWorkspaceEntity.execute).toBeUndefined();
+  });
+
+  it('accepts a command that states the whole view', () => {
+    expect(
+      openWorkspaceTableRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        title: 'Despesas de março',
+        filters: { from: '2026-03-01', to: '2026-03-31', category: 'FUEL' },
+      }).success,
+    ).toBe(true);
+    expect(
+      openWorkspaceEntityRegistry.inputSchema.safeParse({
+        entityType: 'cattleLot',
+        entityId: 'seed-lot-12',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('refuses a change expressed against what is on screen', () => {
+    expect(
+      openWorkspaceTableRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        addFilter: { category: 'FUEL' },
+      }).success,
+    ).toBe(false);
+    expect(
+      openWorkspaceTableRegistry.inputSchema.safeParse({
+        filters: { category: 'FUEL' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it('refuses a period the browser cannot resolve on its own', () => {
+    expect(
+      openWorkspaceTableRegistry.inputSchema.safeParse({
+        dataset: 'expenses',
+        filters: { from: 'semana passada' },
       }).success,
     ).toBe(false);
   });

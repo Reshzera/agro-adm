@@ -8,15 +8,15 @@ The workspace state is one view at a time, plus a bounded history so going back 
 
 **Blocked by:** 03, 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The main application screen gains an agent-driven panel alongside the conversation
-- [ ] Workspace state lives outside the React render cycle and can be read imperatively at request time
-- [ ] Opening a table and opening a single entity are available as tools that render on the client rather than executing on the server
-- [ ] Every workspace command is complete in itself; no command expresses a delta against what is currently displayed
-- [ ] A follow-up question replaces the current view instead of stacking a new one
-- [ ] Going back to the previous view works, with a bounded history
-- [ ] The client's mechanism for returning a tool result is no longer tied to one specific tool
-- [ ] Page, entity and date range are reflected in the URL so a link still resolves
-- [ ] Unit tests cover the state reducer and command validation, including an unrecognised command
-- [ ] The existing financial screen still works, unchanged and without agent involvement
+- [x] The main application screen gains an agent-driven panel alongside the conversation
+- [x] Workspace state lives outside the React render cycle and can be read imperatively at request time
+- [x] Opening a table and opening a single entity are available as tools that render on the client rather than executing on the server
+- [x] Every workspace command is complete in itself; no command expresses a delta against what is currently displayed
+- [x] A follow-up question replaces the current view instead of stacking a new one
+- [x] Going back to the previous view works, with a bounded history
+- [x] The client's mechanism for returning a tool result is no longer tied to one specific tool
+- [x] Page, entity and date range are reflected in the URL so a link still resolves
+- [x] Unit tests cover the state reducer and command validation, including an unrecognised command
+- [x] The existing financial screen still works, unchanged and without agent involvement

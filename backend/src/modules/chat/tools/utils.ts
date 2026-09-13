@@ -15,6 +15,12 @@ export const relativeDateSchema = z
     'Data em YYYY-MM-DD ou uma expressão relativa em português, como "hoje", "ontem" ou "semana passada".',
   );
 export const categorySchema = z.enum(ExpenseCategory);
+export const workspaceDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use uma data em YYYY-MM-DD.')
+  .describe(
+    'Data em YYYY-MM-DD. O painel não entende expressão relativa: converta "esse mês" ou "semana passada" a partir da data atual antes de chamar.',
+  );
 export const periodSchema = z
   .object({
     from: relativeDateSchema.optional(),

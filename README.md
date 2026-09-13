@@ -56,13 +56,53 @@ nasce sem pasto. Desenhar ou editar o contorno de um pasto continua fora do
 chat: é um ato espacial e um pasto sem contorno quebraria o mapa e as regras que
 dividem por área.
 
+## O painel da conversa
+
+A tela `/app` tem três áreas: as conversas, o chat e o painel. Pergunta que
+rende tabela não vira lista dentro da conversa: o agente manda `openWorkspaceTable`
+ou `openWorkspaceEntity`, o painel abre a visão e a resposta escrita fica só com
+o resumo. A pergunta seguinte troca o que está na tela em vez de empilhar outra
+cópia embaixo, e o botão **Voltar** volta para a visão anterior — o histórico é
+limitado (`WORKSPACE_HISTORY_LIMIT`, dez visões).
+
+**O painel é do agente: ele escreve, o produtor lê.** Como o agente não enxerga o
+que o produtor mexeu na tela por conta própria, todo comando descreve a visão
+inteira — dataset, título e todos os filtros valendo. Não existe comando de
+delta ("acrescenta o filtro tal"): as duas tools são `.strict()`, então uma
+chave extra é recusada em vez de aplicada pela metade. O período também precisa
+vir em `YYYY-MM-DD`: o navegador não resolve "semana passada", e quem converte é
+o modelo, com a data que já está no system prompt.
+
+O estado vive fora do ciclo de render do React (`frontend/src/workspace/workspace.store.ts`),
+num store com `getState`/`dispatch`/`subscribe` lido por `useSyncExternalStore`.
+É o que permite ler a visão atual no instante em que a tool chega, sem depender
+de um render ter acontecido. O reducer e a validação de comando
+(`workspace.reducer.ts`, `workspace.commands.ts`) são testados no
+`yarn --cwd frontend test`, inclusive o comando que o painel não reconhece —
+nesse caso a tool devolve `{ status: 'rejected', error }` e o agente pode se
+corrigir na mesma volta.
+
+Página, entidade e período vão para a URL (`?chat=…&view=expenses&from=…&to=…`),
+então o link reabre a mesma visão; um endereço que pede o que o painel não sabe
+mostrar simplesmente não abre nada. Os números do painel vêm das mesmas rotas
+REST das telas manuais — o modelo escolhe a visão, nunca os valores.
+
+**A tela `/app/financeiro` continua igual e sem agente nenhum.** A duplicação
+com o painel é de propósito e temporária.
+
+As tools de painel não têm `execute`: quem executa é o navegador, que devolve o
+resultado com `addToolOutput`. Esse caminho deixou de ser exclusivo do
+`showManualForm` — a lista de tools executadas no navegador fica em
+`browserExecutedTools` (`frontend/src/components/chat/conversation/conversation.tsx`)
+e o envio do resultado leva o nome da tool como parâmetro.
+
 ## Scripts da raiz
 
 | script | o que faz |
 | --- | --- |
 | `yarn dev` | sobe backend e frontend juntos |
 | `yarn build` | compila os dois |
-| `yarn test` | suíte do backend (precisa do Postgres de pé) |
+| `yarn test` | suíte do backend (precisa do Postgres de pé) e a do frontend |
 | `yarn eval` | suíte de avaliação do agente contra o modelo real — gasta token |
 | `yarn db:up` / `db:down` / `db:logs` | Postgres do compose |
 | `yarn db:migrate` | `prisma migrate dev` |

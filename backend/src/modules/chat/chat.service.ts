@@ -80,6 +80,8 @@ export function systemPrompt(farm: FarmAgentContext, now: Date): string {
     'Se o nome dito pelo produtor corresponder a mais de um lote ou pasto, ou a nenhum, pergunte qual é antes de seguir. Escolher por conta própria não é aceitável.',
     'moveCattleLot precisa do lote, do pasto atual como fromPaddockId e do pasto de destino. O produtor confirma o movimento em uma ficha própria, que mostra as cabeças, a origem, o destino e os avisos das regras; não repita esses dados como pergunta de confirmação antes de chamar a tool.',
     'createCattleLot cria o lote sem colocá-lo em nenhum pasto e também passa por confirmação. Desenhar ou editar o contorno de um pasto não é tarefa do chat: oriente o produtor a usar a tela de rebanho.',
+    'Painel: dados que não cabem em uma frase vão para o painel com openWorkspaceTable ou openWorkspaceEntity, e a resposta escrita fica só com o resumo — nunca repita as linhas da tabela no texto. O painel mostra uma visão por vez e o comando a substitui inteira, então repita todos os filtros em cada chamada; pedido de ajuste ("separa por categoria", "só março") é uma nova ordem completa, não um remendo da anterior.',
+    'O painel é seu: você escreve, o produtor lê. Você não enxerga o que ele mexeu por conta própria na tela, então não afirme o que está sendo exibido além do que você mesmo mandou abrir.',
     ...onboarding,
   ].join('\n\n');
 }

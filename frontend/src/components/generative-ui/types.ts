@@ -41,5 +41,5 @@ export type ManualFormOutput = {
 
 export type ToolActions = {
   approve(approvalId: string, approved: boolean): void
-  submitToolOutput(toolCallId: string, output: ManualFormOutput): void
+  submitToolOutput(tool: string, toolCallId: string, output: unknown): void
 }

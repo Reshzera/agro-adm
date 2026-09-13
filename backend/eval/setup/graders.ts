@@ -40,6 +40,8 @@ const READ_ONLY_TOOLS = [
   'getRevenue',
   'getFinancialSummary',
   'showManualForm',
+  'openWorkspaceTable',
+  'openWorkspaceEntity',
 ];
 
 export function noWrite(): Grader {
