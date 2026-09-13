@@ -24,6 +24,12 @@ export function sameView(a: WorkspaceView | null, b: WorkspaceView | null): bool
     return a.dataset === b.dataset && a.title === b.title && sameFilters(a.filters, b.filters)
   if (a.kind === 'entity' && b.kind === 'entity')
     return a.entityType === b.entityType && a.entityId === b.entityId
+  if (a.kind === 'map' && b.kind === 'map')
+    return (
+      a.title === b.title &&
+      a.paddockIds.length === b.paddockIds.length &&
+      a.paddockIds.every((id, index) => id === b.paddockIds[index])
+    )
   if (a.kind === 'chart' && b.kind === 'chart')
     return (
       a.dataset === b.dataset &&

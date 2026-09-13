@@ -131,6 +131,30 @@ describe('cattle and paddock management', () => {
     expect(updatedPaddock.plannedCapacityHead).toBe(84);
   });
 
+  it('creates a lot and a paddock without being told they are active', async () => {
+    await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/paddocks')
+      .send({ name: 'Pasto 11', usableAreaHa: '30.00' })
+      .expect(201)
+      .expect(({ body }) => expect((body as { active: boolean }).active).toBe(true));
+
+    await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/lots')
+      .send({ name: 'Lote 21', category: 'COWS', headCount: 40 })
+      .expect(201)
+      .expect(({ body }) => expect((body as { active: boolean }).active).toBe(true));
+  });
+
+  it('refuses to be told at creation what only an edit can change', async () => {
+    await testApp
+      .as(SEED_IDS.users.joao)
+      .post('/cattle/paddocks')
+      .send({ name: 'Pasto 12', active: false })
+      .expect(400);
+  });
+
   it('opens a first occupancy but refuses to use it as a movement command', async () => {
     const response = await testApp
       .as(SEED_IDS.users.joao)

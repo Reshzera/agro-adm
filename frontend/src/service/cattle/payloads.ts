@@ -19,6 +19,7 @@ export type PaddockPayload = {
   plannedCapacityHead?: number | null;
   forageType?: string | null;
   active?: boolean;
+  boundary?: { space: "geo"; points: [number, number][] } | null;
 };
 
 export type CattleMovementPayload = {

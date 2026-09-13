@@ -15,6 +15,10 @@ function label(part: ToolPart): string {
   const view = parsed.view;
   if (view.kind === "entity")
     return `Abri a ficha no painel — ${workspaceDatasetDefinitions[datasetForEntity(view.entityType)].singular}.`;
+  if (view.kind === "map")
+    return view.paddockIds.length
+      ? `Enquadrei no mapa do painel ${view.paddockIds.length === 1 ? "o pasto pedido" : `${view.paddockIds.length} pastos`}.`
+      : "Abri o mapa da fazenda no painel.";
   if (view.kind === "chart")
     return `Desenhei no painel: ${view.title ?? `${workspaceDatasetDefinitions[view.dataset].label} por ${groupingLabels[view.groupBy]}`}.`;
   return `Abri no painel: ${view.title ?? workspaceDatasetDefinitions[view.dataset].label}.`;

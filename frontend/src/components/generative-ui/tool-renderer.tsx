@@ -66,6 +66,7 @@ export function ToolRenderer({
     case "tool-openWorkspaceTable":
     case "tool-openWorkspaceEntity":
     case "tool-openWorkspaceChart":
+    case "tool-openWorkspaceMap":
       return <WorkspaceNotice part={part} />;
     case "tool-showManualForm":
       return (

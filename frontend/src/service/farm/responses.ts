@@ -7,5 +7,7 @@ export type Farm = {
   mainCrops: string | null
   approximateAnimalCount: number | null
   agentContext: string | null
+  latitude: string | null
+  longitude: string | null
   onboardingCompleted: boolean
 }

@@ -6,13 +6,13 @@ Computed area is shown beside the producer's own usable-area figure, but does no
 
 **Blocked by:** 05, 11
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A paddock boundary can be drawn and re-edited over satellite imagery, stored in real world coordinates
-- [ ] Each stored shape records the space it was drawn in, and previously stored image-relative shapes still load without error
-- [ ] Computed geometric area is displayed next to the producer-entered usable area
-- [ ] Rules continue to use the producer-entered figure; the computed one is advisory
-- [ ] A large divergence between the two is surfaced to the producer and changes nothing on its own
-- [ ] The agent can focus the map on given paddocks, but cannot create or edit a boundary
-- [ ] The satellite tile source is a single configuration value, not a dependency spread through the code
-- [ ] The shared fixture farm is converted to real coordinates and its paddocks render correctly
+- [x] A paddock boundary can be drawn and re-edited over satellite imagery, stored in real world coordinates
+- [x] Each stored shape records the space it was drawn in, and previously stored image-relative shapes still load without error
+- [x] Computed geometric area is displayed next to the producer-entered usable area
+- [x] Rules continue to use the producer-entered figure; the computed one is advisory
+- [x] A large divergence between the two is surfaced to the producer and changes nothing on its own
+- [x] The agent can focus the map on given paddocks, but cannot create or edit a boundary
+- [x] The satellite tile source is a single configuration value, not a dependency spread through the code
+- [x] The shared fixture farm is converted to real coordinates and its paddocks render correctly

@@ -3,7 +3,7 @@ import {
   ActorType,
   DomainEventSource,
   FarmAreaType,
-  type Prisma,
+  Prisma,
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../database/database.service';
@@ -22,6 +22,11 @@ import { CattleResourceNotFoundError } from './errors/cattle-resource-not-found.
 import { CattleMovementInvariantError } from './errors/cattle-movement-invariant.error';
 import { InvalidCattleOperationError } from './errors/invalid-cattle-operation.error';
 import { CattleRepository } from './cattle.repository';
+import {
+  areaDivergence,
+  presentBoundary,
+  storeBoundary,
+} from './boundary/paddock-boundary';
 import { RuleEngineService } from '../rule-engine/rule-engine.service';
 import {
   presentMovementPreview,
@@ -121,6 +126,7 @@ export class CattleService {
         minRestDays: input.minRestDays,
         plannedCapacityHead: input.plannedCapacityHead,
         forageType: input.forageType || null,
+        ...this.boundaryData(input.boundary),
       }),
       this.repository.farmDefaults(farmId),
     ]);
@@ -158,6 +164,7 @@ export class CattleService {
         ? { forageType: input.forageType || null }
         : {}),
       ...(input.active !== undefined ? { active: input.active } : {}),
+      ...this.boundaryData(input.boundary),
     };
     const [paddock, defaults] = await Promise.all([
       this.repository.updatePaddock(farmId, id, data),
@@ -411,10 +418,19 @@ export class CattleService {
     return { ...fields, currentOccupancy: occupancies[0] ?? null };
   }
 
+  private boundaryData(boundary: CreatePaddockDto['boundary']) {
+    if (boundary === undefined) return {};
+    return {
+      shape: boundary ? storeBoundary(boundary.points) : Prisma.DbNull,
+    };
+  }
+
   private presentPaddock<
     T extends {
       maxGrazingDays: number | null;
       minRestDays: number | null;
+      usableAreaHa: { toString(): string } | null;
+      shape: Prisma.JsonValue | null;
       occupancies: unknown[];
     },
   >(
@@ -425,8 +441,15 @@ export class CattleService {
       defaultStockingRateHeadPerHa: { toString(): string } | null;
     } | null,
   ) {
+    const { shape, ...fields } = paddock;
+    const boundary = presentBoundary(shape);
     return {
-      ...paddock,
+      ...fields,
+      boundary,
+      areaDivergence: areaDivergence(
+        boundary?.computedAreaHa ?? null,
+        paddock.usableAreaHa?.toString() ?? null,
+      ),
       effectiveSettings: {
         maxGrazingDays: this.resolved(
           paddock.maxGrazingDays,

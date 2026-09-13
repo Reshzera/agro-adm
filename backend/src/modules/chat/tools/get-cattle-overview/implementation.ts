@@ -21,6 +21,10 @@ export async function getCattleOverview(context: ToolContext) {
       name: paddock.name,
       active: paddock.active,
       plannedCapacityHead: paddock.plannedCapacityHead,
+      usableAreaHa: paddock.usableAreaHa,
+      computedAreaHa: paddock.boundary?.computedAreaHa ?? null,
+      hasBoundary: paddock.boundary !== null,
+      areaDivergence: paddock.areaDivergence,
       occupiedBy: paddock.occupancies.map((occupancy) => occupancy.lot),
     })),
   });

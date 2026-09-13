@@ -26,6 +26,20 @@ export type CattleLot = {
 
 export type ResolvedSetting<T> = { value: T | null; source: SettingSource };
 
+export type PaddockBoundary = {
+  space: "geo" | "image";
+  version: number;
+  points: [number, number][];
+  computedAreaHa: string | null;
+};
+
+export type AreaDivergence = {
+  computedAreaHa: string;
+  usableAreaHa: string;
+  differencePercent: number;
+  significant: boolean;
+};
+
 export type Paddock = {
   id: string;
   name: string;
@@ -36,6 +50,8 @@ export type Paddock = {
   plannedCapacityHead: number | null;
   forageType: string | null;
   active: boolean;
+  boundary: PaddockBoundary | null;
+  areaDivergence: AreaDivergence | null;
   occupancies: {
     id: string;
     startedAt: string;

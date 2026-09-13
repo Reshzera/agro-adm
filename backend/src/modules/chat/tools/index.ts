@@ -20,6 +20,7 @@ import { getRevenueRegistry } from './get-revenue/registry';
 import { moveCattleLot } from './move-cattle-lot/implementation';
 import { openWorkspaceChartRegistry } from './open-workspace-chart/registry';
 import { openWorkspaceEntityRegistry } from './open-workspace-entity/registry';
+import { openWorkspaceMapRegistry } from './open-workspace-map/registry';
 import { openWorkspaceTableRegistry } from './open-workspace-table/registry';
 import { moveCattleLotRegistry } from './move-cattle-lot/registry';
 import { showManualFormRegistry } from './show-manual-form/registry';
@@ -93,5 +94,6 @@ export function chatTools(context: ToolContext) {
     openWorkspaceTable: tool(openWorkspaceTableRegistry),
     openWorkspaceEntity: tool(openWorkspaceEntityRegistry),
     openWorkspaceChart: tool(openWorkspaceChartRegistry),
+    openWorkspaceMap: tool(openWorkspaceMapRegistry),
   };
 }

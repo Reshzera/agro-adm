@@ -9,6 +9,7 @@ import {
   ChatSource,
   FarmAreaType,
   OutboxStatus,
+  type Prisma,
 } from '@prisma/client';
 
 type Profile = {
@@ -29,6 +30,8 @@ type Farm = {
   mainCrops: string | null;
   approximateAnimalCount: number | null;
   agentContext: string | null;
+  latitude: string | null;
+  longitude: string | null;
   onboardingCompleted: boolean;
   defaultMaxGrazingDays: number | null;
   defaultMinRestDays: number | null;
@@ -58,6 +61,7 @@ type Paddock = {
   minRestDays: number | null;
   plannedCapacityHead: number | null;
   forageType: string | null;
+  shape: Prisma.JsonValue | null;
   active: boolean;
 };
 
@@ -118,6 +122,8 @@ export function createMockRepositories() {
         mainCrops: null,
         approximateAnimalCount: null,
         agentContext: null,
+        latitude: null,
+        longitude: null,
         onboardingCompleted: false,
         defaultMaxGrazingDays: null,
         defaultMinRestDays: null,
@@ -337,6 +343,7 @@ export function createMockRepositories() {
         minRestDays: input.minRestDays ?? null,
         plannedCapacityHead: input.plannedCapacityHead ?? null,
         forageType: input.forageType ?? null,
+        shape: input.shape ?? null,
       };
       paddocks.set(paddock.id, paddock);
       return paddockWithOccupancies(paddock);
@@ -613,6 +620,8 @@ export function createMockRepositories() {
           mainCrops: 'Milho safrinha',
           approximateAnimalCount: 920,
           agentContext: 'João é o gerente.',
+          latitude: '-19.530700',
+          longitude: '-54.043300',
           onboardingCompleted: true,
           defaultMaxGrazingDays: 10,
           defaultMinRestDays: 30,
@@ -631,6 +640,8 @@ export function createMockRepositories() {
           mainCrops: 'Soja',
           approximateAnimalCount: null,
           agentContext: null,
+          latitude: null,
+          longitude: null,
           onboardingCompleted: true,
           defaultMaxGrazingDays: null,
           defaultMinRestDays: null,
@@ -702,6 +713,16 @@ export function createMockRepositories() {
           minRestDays: null,
           plannedCapacityHead: 120,
           forageType: 'Brachiária brizantha',
+          shape: {
+            space: 'geo',
+            version: 1,
+            points: [
+              [-54.111902, -19.519397],
+              [-54.103268, -19.518559],
+              [-54.101698, -19.524424],
+              [-54.110724, -19.525542],
+            ],
+          },
           active: true,
         },
       ],
@@ -718,6 +739,16 @@ export function createMockRepositories() {
           minRestDays: 35,
           plannedCapacityHead: null,
           forageType: 'Mombaça',
+          shape: {
+            space: 'geo',
+            version: 1,
+            points: [
+              [-54.111163, -19.529187],
+              [-54.101526, -19.528591],
+              [-54.10027, -19.534555],
+              [-54.110325, -19.535449],
+            ],
+          },
           active: true,
         },
       ],
@@ -734,6 +765,16 @@ export function createMockRepositories() {
           minRestDays: null,
           plannedCapacityHead: null,
           forageType: 'Brachiária brizantha',
+          shape: {
+            space: 'geo',
+            version: 1,
+            points: [
+              [-54.096346, -19.531769],
+              [-54.088305, -19.532341],
+              [-54.089109, -19.538063],
+              [-54.096748, -19.537491],
+            ],
+          },
           active: true,
         },
       ],
@@ -750,6 +791,7 @@ export function createMockRepositories() {
           minRestDays: 28,
           plannedCapacityHead: null,
           forageType: 'Brachiária brizantha',
+          shape: null,
           active: true,
         },
       ],

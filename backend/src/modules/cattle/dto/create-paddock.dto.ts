@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsOptional,
@@ -8,8 +8,10 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { trimmed } from './create-cattle-lot.dto';
+import { PaddockBoundaryDto } from './paddock-boundary.dto';
 
 export class CreatePaddockDto {
   @IsString()
@@ -49,4 +51,9 @@ export class CreatePaddockDto {
   @Transform(trimmed)
   @MaxLength(200)
   forageType?: string | null;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PaddockBoundaryDto)
+  boundary?: PaddockBoundaryDto | null;
 }

@@ -11,6 +11,8 @@ const farmFields = {
   mainCrops: true,
   approximateAnimalCount: true,
   agentContext: true,
+  latitude: true,
+  longitude: true,
   onboardingCompleted: true,
 } satisfies Prisma.FarmSelect;
 

@@ -23,6 +23,15 @@ function openAll(views: WorkspaceView[], state: WorkspaceState = emptyWorkspace)
 }
 
 describe('workspace reducer', () => {
+  it('treats the same framing as the same map, and a new framing as a new view', () => {
+    const first: WorkspaceView = { kind: 'map', paddockIds: ['pasto-4'] }
+    const again: WorkspaceView = { kind: 'map', paddockIds: ['pasto-4'] }
+    const other: WorkspaceView = { kind: 'map', paddockIds: ['pasto-4', 'pasto-6'] }
+
+    expect(openAll([first, again]).history).toEqual([])
+    expect(openAll([first, other]).history).toEqual([first])
+  })
+
   it('shows one view at a time and keeps the replaced one for going back', () => {
     const state = openAll([table('2026-03-01'), table('2026-02-01')])
 

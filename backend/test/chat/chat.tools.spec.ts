@@ -14,6 +14,7 @@ import { getRevenueRegistry } from '../../src/modules/chat/tools/get-revenue/reg
 import { moveCattleLotRegistry } from '../../src/modules/chat/tools/move-cattle-lot/registry';
 import { openWorkspaceChartRegistry } from '../../src/modules/chat/tools/open-workspace-chart/registry';
 import { openWorkspaceEntityRegistry } from '../../src/modules/chat/tools/open-workspace-entity/registry';
+import { openWorkspaceMapRegistry } from '../../src/modules/chat/tools/open-workspace-map/registry';
 import { openWorkspaceTableRegistry } from '../../src/modules/chat/tools/open-workspace-table/registry';
 import { showManualFormRegistry } from '../../src/modules/chat/tools/show-manual-form/registry';
 import { updateExpenseRegistry } from '../../src/modules/chat/tools/update-expense/registry';
@@ -78,6 +79,23 @@ function toolsForTest() {
           name: 'Pasto 6',
           active: true,
           plannedCapacityHead: null,
+          usableAreaHa: '49.00',
+          boundary: {
+            space: 'geo',
+            version: 1,
+            points: [
+              [-54.046346, -19.531769],
+              [-54.038305, -19.532341],
+              [-54.039109, -19.538063],
+            ],
+            computedAreaHa: '63.00',
+          },
+          areaDivergence: {
+            computedAreaHa: '63.00',
+            usableAreaHa: '49.00',
+            differencePercent: 28.6,
+            significant: true,
+          },
           occupancies: [],
         },
       ]),
@@ -197,6 +215,7 @@ describe('chat financial tools', () => {
       openWorkspaceTableRegistry.inputSchema,
       openWorkspaceEntityRegistry.inputSchema,
       openWorkspaceChartRegistry.inputSchema,
+      openWorkspaceMapRegistry.inputSchema,
     ];
 
     for (const schema of schemas) {
@@ -270,6 +289,15 @@ describe('chat cattle tools', () => {
           name: 'Pasto 6',
           active: true,
           plannedCapacityHead: null,
+          usableAreaHa: '49.00',
+          computedAreaHa: '63.00',
+          hasBoundary: true,
+          areaDivergence: {
+            computedAreaHa: '63.00',
+            usableAreaHa: '49.00',
+            differencePercent: 28.6,
+            significant: true,
+          },
           occupiedBy: [],
         },
       ],
@@ -422,6 +450,44 @@ describe('workspace tools', () => {
         filters: { from: '2026-01-01', to: '2026-03-31' },
       }).success,
     ).toBe(true);
+  });
+
+  it('lets the model frame the map on paddocks it resolved by id', () => {
+    expect(
+      openWorkspaceMapRegistry.inputSchema.safeParse({
+        paddockIds: ['seed-area-pasto-4', 'seed-area-pasto-6'],
+        title: 'Pastos do fundo',
+      }).success,
+    ).toBe(true);
+    expect(openWorkspaceMapRegistry.inputSchema.safeParse({}).success).toBe(
+      true,
+    );
+  });
+
+  it('gives the model no way to draw or correct a boundary through the map', () => {
+    expect(
+      openWorkspaceMapRegistry.inputSchema.safeParse({
+        paddockIds: ['seed-area-pasto-4'],
+        boundary: {
+          space: 'geo',
+          points: [
+            [-54.06, -19.51],
+            [-54.05, -19.51],
+            [-54.05, -19.52],
+          ],
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      openWorkspaceMapRegistry.inputSchema.safeParse({
+        paddockIds: ['seed-area-pasto-4'],
+        points: [[-54.06, -19.51]],
+      }).success,
+    ).toBe(false);
+    expect(Object.keys(openWorkspaceMapRegistry.inputSchema.shape)).toEqual([
+      'paddockIds',
+      'title',
+    ]);
   });
 
   it('refuses a chart carrying its own numbers or a shape it cannot draw', () => {

@@ -77,6 +77,27 @@ describe('workspace command validation', () => {
     })
   })
 
+  it('accepts a map command that says only which paddocks to frame', () => {
+    expect(parseWorkspaceCommand('openWorkspaceMap', { paddockIds: ['seed-area-pasto-4'] })).toEqual({
+      ok: true,
+      view: { kind: 'map', paddockIds: ['seed-area-pasto-4'] },
+    })
+    expect(parseWorkspaceCommand('openWorkspaceMap', {})).toEqual({
+      ok: true,
+      view: { kind: 'map', paddockIds: [] },
+    })
+  })
+
+  it('refuses a map command that tries to draw or move a boundary', () => {
+    const drawn = parseWorkspaceCommand('openWorkspaceMap', {
+      paddockIds: ['seed-area-pasto-4'],
+      boundary: { space: 'geo', points: [[-54.06, -19.51], [-54.05, -19.51], [-54.05, -19.52]] },
+    })
+
+    expect(drawn.ok).toBe(false)
+    expect(parseWorkspaceCommand('openWorkspaceMap', { points: [[-54.06, -19.51]] }).ok).toBe(false)
+  })
+
   it('rejects a chart shape it cannot draw, saying which ones it draws', () => {
     const parsed = parseWorkspaceCommand('openWorkspaceChart', {
       dataset: 'expenses',

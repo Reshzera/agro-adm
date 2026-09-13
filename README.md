@@ -119,6 +119,43 @@ As cores vêm dos tokens do tema (`--color-accent`, `--color-highlight`,
 `--color-danger` e misturas), então o mesmo gráfico se lê no claro e no escuro sem
 segunda paleta.
 
+## Mapa e contorno de pasto
+
+O contorno do pasto é desenhado sobre imagem de satélite, em coordenada real, na
+aba **Mapa** de `/app/rebanho`: um toque marca cada divisa, arrastar um ponto
+corrige, tocar nele tira. Isso reverte a decisão antiga de guardar o contorno
+relativo a uma imagem carregada — coordenada real é o que dá área calculada,
+satélite e, depois, clima.
+
+O que fica gravado em `FarmArea.shape` diz em que espaço foi desenhado:
+`{ space: 'geo', version: 1, points: [[lng, lat], …] }` para o que se desenha
+hoje, e o `space: 'image'` antigo continua sendo lido sem erro — só não ganha
+área calculada. Quem lê e mede é
+`backend/src/modules/cattle/boundary/paddock-boundary.ts`; a API devolve o
+contorno já com `computedAreaHa` e nunca joga fora uma forma que não conseguiu
+entender: ela volta como `boundary: null` em vez de derrubar a resposta.
+
+**A área calculada não substitui a área útil.** Um polígono traçado no satélite
+engloba capão, pedra, água e carreador, então a área geométrica sempre supera o
+que o gado de fato pasta — e uma regra de lotação alimentada com o número
+inflado avisa de menos justamente quando mais importa. As regras
+(`MOVEMENT_RULES`) continuam lendo `usableAreaHa`, o número que o produtor
+informou; a calculada aparece do lado, como conferência. Quando as duas divergem
+mais de 20%, a resposta traz `areaDivergence.significant` e a tela comenta a
+diferença — observação, nunca correção automática.
+
+O agente enquadra, não desenha: `openWorkspaceMap` aceita apenas `paddockIds` e
+`title`, é `.strict()`, e não existe tool que escreva contorno. Pergunta de lugar
+("onde está o lote 12", "quem faz divisa com o pasto 6") abre o mapa no painel
+com os pastos citados; desenhar continua sendo ato do produtor na tela.
+
+**A fonte de tiles é um valor de configuração só**, `VITE_SATELLITE_TILES`, lido
+em `frontend/src/map/tiles.ts` — nenhum outro arquivo conhece URL de tile. O
+padrão é o World Imagery da Esri; trocar de provedor é trocar essa linha do
+`.env`. O resto do mapa é geometria própria (`frontend/src/map/geo.ts`:
+projeção Web Mercator, área geodésica, enquadramento e grade de tiles), sem
+biblioteca de mapa.
+
 ## Scripts da raiz
 
 | script | o que faz |
@@ -260,9 +297,11 @@ do BetterAuth, em outra conexão.
 **Nem toda coluna `jsonb` tem validação.** `Message.parts` já passa por
 `validateUIMessages` na leitura do `ChatService`: o repositório devolve
 `JsonValue` e quem transforma em `UIMessage` é o validador, não um cast. Já
-`PendingAction.args` e `FarmArea.shape` continuam chegando como `JsonValue` crua
-— a validação entra com class-validator junto dos DTOs, nas fatias que escrevem
-essas colunas, e até lá `shape` aceita ponto fora de 0..1 sem reclamar.
+`FarmArea.shape` agora tem validação nos dois sentidos: entra por
+`PaddockBoundaryDto` (class-validator, só `space: 'geo'` e ponto dentro do mundo
+mapeado) e sai por `readBoundary`, que devolve `null` para o que não conseguir
+ler em vez de estourar. `PendingAction.args` continua chegando como `JsonValue`
+crua.
 
 **Jest com `watchman: false`.** O watchman instalado nesta máquina está quebrado
 (`libfmt` faltando) e fazia o jest sair sem rodar teste nenhum. Se o watchman

@@ -8,6 +8,7 @@ import {
   type WorkspaceTableView,
   type WorkspaceView,
 } from '../../../workspace/workspace.commands'
+import { WorkspaceMap } from '../workspace-map/workspace-map'
 import { useWorkspace, workspaceStore } from '../../../workspace/workspace.store'
 import { filterSummary, workspaceDatasetDefinitions, type WorkspaceRow } from '../workspace.datasets'
 import { WorkspaceChart } from '../workspace-chart/workspace-chart'
@@ -74,6 +75,13 @@ function WorkspaceEntity({ view }: { view: WorkspaceEntityView }) {
 }
 
 function heading(view: WorkspaceView): { title: string; subtitle: string } {
+  if (view.kind === 'map')
+    return {
+      title: view.title ?? 'Mapa da fazenda',
+      subtitle: view.paddockIds.length
+        ? `${view.paddockIds.length} ${view.paddockIds.length === 1 ? 'pasto enquadrado' : 'pastos enquadrados'}`
+        : 'todos os pastos com contorno',
+    }
   if (view.kind === 'entity')
     return {
       title: workspaceDatasetDefinitions[datasetForEntity(view.entityType)].singular,
@@ -113,6 +121,7 @@ export function WorkspacePanel() {
       ? <p className={styles.blank}>Peça os números no chat — a tabela abre aqui e a conversa fica só com a resposta.</p>
       : current.kind === 'table' ? <WorkspaceTable view={current} />
         : current.kind === 'chart' ? <WorkspaceChart view={current} />
-          : <WorkspaceEntity view={current} />}
+          : current.kind === 'map' ? <WorkspaceMap view={current} />
+            : <WorkspaceEntity view={current} />}
   </aside>
 }

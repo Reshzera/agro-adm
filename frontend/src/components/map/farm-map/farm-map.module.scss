@@ -1,0 +1,111 @@
+.map {
+  position: relative;
+  height: 100%;
+  min-height: 18rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+}
+
+.surface {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+
+  &:active { cursor: grabbing; }
+  &[data-drawing] { cursor: crosshair; }
+}
+
+.tiles {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tile {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.shape {
+  polygon {
+    fill: color-mix(in srgb, var(--color-accent) 26%, transparent);
+    stroke: var(--color-accent-contrast);
+    stroke-width: 2;
+  }
+
+  text {
+    fill: var(--color-accent-contrast);
+    font: 600 .75rem/1 var(--font-body);
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, .55);
+    stroke-width: 3;
+  }
+
+  &[data-occupied] polygon { fill: color-mix(in srgb, var(--color-highlight) 34%, transparent); }
+
+  &[data-framed] polygon {
+    fill: color-mix(in srgb, var(--color-highlight) 22%, transparent);
+    stroke-width: 3;
+  }
+}
+
+.draft {
+  polygon {
+    fill: color-mix(in srgb, var(--color-highlight) 24%, transparent);
+    stroke: var(--color-highlight);
+    stroke-width: 2;
+    stroke-dasharray: 6 4;
+  }
+
+  circle {
+    fill: var(--color-surface);
+    stroke: var(--color-highlight);
+    stroke-width: 2;
+  }
+}
+
+.zoom {
+  position: absolute;
+  top: .6rem;
+  right: .6rem;
+  display: grid;
+  gap: .3rem;
+
+  button {
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+}
+
+.credit {
+  position: absolute;
+  right: .4rem;
+  bottom: .3rem;
+  padding: .1rem .4rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  color: var(--color-text-muted);
+  font-size: .65rem;
+}

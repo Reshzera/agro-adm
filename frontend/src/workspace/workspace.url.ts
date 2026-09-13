@@ -1,10 +1,28 @@
 import { parseWorkspaceCommand, type WorkspaceView } from './workspace.commands'
 
-const workspaceParams = ['view', 'entity', 'chart', 'by', 'measure', 'from', 'to', 'category'] as const
+const workspaceParams = [
+  'view',
+  'entity',
+  'chart',
+  'by',
+  'measure',
+  'paddocks',
+  'from',
+  'to',
+  'category',
+] as const
 
 export function viewFromSearchParams(params: URLSearchParams): WorkspaceView | null {
   const view = params.get('view')
   if (!view) return null
+
+  if (view === 'map') {
+    const paddocks = params.get('paddocks')
+    const parsed = parseWorkspaceCommand('openWorkspaceMap', {
+      ...(paddocks ? { paddockIds: paddocks.split(',').filter(Boolean) } : {}),
+    })
+    return parsed.ok ? parsed.view : null
+  }
 
   const entityId = params.get('entity')
   if (entityId) {
@@ -45,6 +63,12 @@ export function applyViewToSearchParams(
   if (view.kind === 'entity') {
     next.set('view', view.entityType)
     next.set('entity', view.entityId)
+    return next
+  }
+
+  if (view.kind === 'map') {
+    next.set('view', 'map')
+    if (view.paddockIds.length) next.set('paddocks', view.paddockIds.join(','))
     return next
   }
 

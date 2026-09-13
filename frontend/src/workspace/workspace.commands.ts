@@ -7,6 +7,7 @@ export const workspaceToolNames = [
   'openWorkspaceTable',
   'openWorkspaceEntity',
   'openWorkspaceChart',
+  'openWorkspaceMap',
 ] as const
 export const workspaceChartShapes = ['bar', 'line', 'pie'] as const
 export const workspaceGroupings = ['category', 'month', 'day', 'paddock', 'cattleCategory'] as const
@@ -92,6 +93,13 @@ const chartCommandSchema = z
   })
   .strict()
 
+const mapCommandSchema = z
+  .object({
+    paddockIds: z.array(z.string().trim().min(1)).min(1).max(50).optional(),
+    title: z.string().trim().min(1).max(80).optional(),
+  })
+  .strict()
+
 const entityCommandSchema = z
   .object({
     entityType: z.enum(workspaceEntities),
@@ -124,7 +132,17 @@ export type WorkspaceChartView = {
   filters: WorkspaceFilters
 }
 
-export type WorkspaceView = WorkspaceTableView | WorkspaceEntityView | WorkspaceChartView
+export type WorkspaceMapView = {
+  kind: 'map'
+  paddockIds: string[]
+  title?: string
+}
+
+export type WorkspaceView =
+  | WorkspaceTableView
+  | WorkspaceEntityView
+  | WorkspaceChartView
+  | WorkspaceMapView
 
 export type WorkspaceCommandResult = { ok: true; view: WorkspaceView } | { ok: false; error: string }
 
@@ -174,6 +192,13 @@ export function parseWorkspaceCommand(tool: string, input: unknown): WorkspaceCo
         filters: filters ?? {},
       },
     }
+  }
+
+  if (tool === 'openWorkspaceMap') {
+    const parsed = mapCommandSchema.safeParse(input)
+    if (!parsed.success) return rejection(parsed.error)
+    const { paddockIds, title } = parsed.data
+    return { ok: true, view: { kind: 'map', paddockIds: paddockIds ?? [], ...(title ? { title } : {}) } }
   }
 
   if (tool === 'openWorkspaceEntity') {

@@ -39,6 +39,14 @@ describe('workspace links', () => {
     expect(viewFromSearchParams(new URLSearchParams('view=expenses&chart=line&by=category&measure=amount'))).toBeNull()
   })
 
+  it('keeps the framed paddocks in the address', () => {
+    const view: WorkspaceView = { kind: 'map', paddockIds: ['seed-area-pasto-4', 'seed-area-pasto-6'] }
+
+    expect(url(view)).toBe('chat=chat-1&view=map&paddocks=seed-area-pasto-4%2Cseed-area-pasto-6')
+    expect(viewFromSearchParams(new URLSearchParams(url(view)))).toEqual(view)
+    expect(viewFromSearchParams(new URLSearchParams('view=map'))).toEqual({ kind: 'map', paddockIds: [] })
+  })
+
   it('drops the panel from the address when nothing is open, keeping the conversation', () => {
     const params = applyViewToSearchParams(new URLSearchParams('chat=chat-1&view=expenses&from=2026-03-01'), null)
 

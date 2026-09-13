@@ -18,9 +18,6 @@ export const SEED_IDS = {
     santaClara: 'seed-farm-santa-clara',
     boaVista: 'seed-farm-boa-vista',
   },
-  mapImages: {
-    santaClara: 'seed-map-santa-clara',
-  },
   areas: {
     pasto4: 'seed-area-pasto-4',
     pasto5: 'seed-area-pasto-5',
@@ -69,7 +66,7 @@ function at(iso: string): Date {
 }
 
 function shape(points: [number, number][]): Prisma.InputJsonValue {
-  return { space: 'image', version: 1, points };
+  return { space: 'geo', version: 1, points };
 }
 
 export async function resetDatabase(prisma: PrismaClient): Promise<void> {
@@ -132,23 +129,11 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
     },
   });
 
-  await prisma.farmMapImage.create({
-    data: {
-      id: SEED_IDS.mapImages.santaClara,
-      farmId: SEED_IDS.farms.santaClara,
-      storageKey: 'seed/santa-clara/mapa.png',
-      widthPx: 1600,
-      heightPx: 1200,
-      uploadedAt: SEED_CLOCK,
-    },
-  });
-
   await prisma.farmArea.createMany({
     data: [
       {
         id: SEED_IDS.areas.pasto4,
         farmId: SEED_IDS.farms.santaClara,
-        mapImageId: SEED_IDS.mapImages.santaClara,
         name: 'Pasto 4',
         type: FarmAreaType.PASTURE,
         hectares: '63.50',
@@ -157,16 +142,15 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
         plannedCapacityHead: 120,
         forageType: 'Brachiária brizantha',
         shape: shape([
-          [0.12, 0.18],
-          [0.34, 0.15],
-          [0.38, 0.36],
-          [0.15, 0.4],
+          [-54.111902, -19.519397],
+          [-54.103268, -19.518559],
+          [-54.101698, -19.524424],
+          [-54.110724, -19.525542],
         ]),
       },
       {
         id: SEED_IDS.areas.pasto5,
         farmId: SEED_IDS.farms.santaClara,
-        mapImageId: SEED_IDS.mapImages.santaClara,
         name: 'Pasto 5',
         type: FarmAreaType.PASTURE,
         hectares: '71.20',
@@ -174,54 +158,51 @@ export async function seedSantaClara(prisma: PrismaClient): Promise<void> {
         minRestDays: 35,
         forageType: 'Mombaça',
         shape: shape([
-          [0.14, 0.44],
-          [0.37, 0.42],
-          [0.4, 0.62],
-          [0.16, 0.65],
+          [-54.111163, -19.529187],
+          [-54.101526, -19.528591],
+          [-54.10027, -19.534555],
+          [-54.110325, -19.535449],
         ]),
       },
       {
         id: SEED_IDS.areas.pasto6,
         farmId: SEED_IDS.farms.santaClara,
-        mapImageId: SEED_IDS.mapImages.santaClara,
         name: 'Pasto 6',
         type: FarmAreaType.PASTURE,
         hectares: '52.80',
         usableAreaHa: '49.00',
         forageType: 'Brachiária brizantha',
         shape: shape([
-          [0.42, 0.5],
-          [0.62, 0.52],
-          [0.6, 0.72],
-          [0.41, 0.7],
+          [-54.096346, -19.531769],
+          [-54.088305, -19.532341],
+          [-54.089109, -19.538063],
+          [-54.096748, -19.537491],
         ]),
       },
       {
         id: SEED_IDS.areas.talhao1,
         farmId: SEED_IDS.farms.santaClara,
-        mapImageId: SEED_IDS.mapImages.santaClara,
         name: 'Talhão 1',
         type: FarmAreaType.CROP_FIELD,
         hectares: '120.00',
         shape: shape([
-          [0.45, 0.2],
-          [0.68, 0.22],
-          [0.66, 0.44],
-          [0.44, 0.42],
+          [-54.095991, -19.519203],
+          [-54.083608, -19.519969],
+          [-54.084685, -19.528399],
+          [-54.09653, -19.527633],
         ]),
       },
       {
         id: SEED_IDS.areas.talhao2,
         farmId: SEED_IDS.farms.santaClara,
-        mapImageId: SEED_IDS.mapImages.santaClara,
         name: 'Talhão 2',
         type: FarmAreaType.CROP_FIELD,
         hectares: '95.00',
         shape: shape([
-          [0.7, 0.24],
-          [0.9, 0.26],
-          [0.88, 0.5],
-          [0.68, 0.47],
+          [-54.082097, -19.521171],
+          [-54.072287, -19.521869],
+          [-54.073268, -19.530247],
+          [-54.083078, -19.5292],
         ]),
       },
       {

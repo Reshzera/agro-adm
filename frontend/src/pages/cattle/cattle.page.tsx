@@ -2,6 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { cattleEndpoints } from "../../service/cattle";
+import { farmEndpoints } from "../../service/farm";
+import { FarmMap } from "../../components/map/farm-map/farm-map";
+import { polygonAreaHa, type LngLat } from "../../map/geo";
+import {
+  divergenceNotice,
+  farmHome,
+  hectaresLabel,
+  mappedPaddocks,
+} from "../../map/paddocks";
 import type {
   CattleLotPayload,
   CattleMovementPayload,
@@ -13,6 +22,7 @@ import type {
   Paddock,
   ResolvedSetting,
 } from "../../service/cattle/responses";
+import type { Farm } from "../../service/farm/responses";
 import styles from "./cattle.page.module.scss";
 
 const categoryLabels: Record<CattleCategory, string> = {
@@ -27,6 +37,7 @@ const categoryLabels: Record<CattleCategory, string> = {
 type Editor =
   | { kind: "lot"; item?: CattleLot }
   | { kind: "paddock"; item?: Paddock }
+  | { kind: "boundary"; paddock: Paddock }
   | { kind: "placement"; lot: CattleLot }
   | { kind: "movement"; lot: CattleLot };
 
@@ -53,7 +64,7 @@ function errorMessage(error: unknown): string {
 
 export function CattlePage() {
   const queryClient = useQueryClient();
-  const [view, setView] = useState<"lots" | "paddocks">("lots");
+  const [view, setView] = useState<"lots" | "paddocks" | "map">("lots");
   const [editor, setEditor] = useState<Editor | null>(null);
   const lots = useQuery({
     queryKey: ["cattle", "lots"],
@@ -62,6 +73,10 @@ export function CattlePage() {
   const paddocks = useQuery({
     queryKey: ["cattle", "paddocks"],
     queryFn: async ({ signal }) => (await cattleEndpoints.paddocks(signal)).data,
+  });
+  const farm = useQuery({
+    queryKey: ["farm"],
+    queryFn: async ({ signal }) => (await farmEndpoints.current(signal)).data,
   });
 
   const totalHead = lots.data
@@ -105,9 +120,18 @@ export function CattlePage() {
       <nav className={styles.tabs} aria-label="Visão de manejo">
         <button data-active={view === "lots"} onClick={() => setView("lots")}>Lotes</button>
         <button data-active={view === "paddocks"} onClick={() => setView("paddocks")}>Pastos</button>
+        <button data-active={view === "map"} onClick={() => setView("map")}>Mapa</button>
       </nav>
 
-      {view === "lots" ? (
+      {view === "map" ? (
+        <MapView
+          paddocks={paddocks.data}
+          farm={farm.data}
+          pending={paddocks.isPending}
+          error={paddocks.isError}
+          onDraw={(paddock) => setEditor({ kind: "boundary", paddock })}
+        />
+      ) : view === "lots" ? (
         <LotView
           lots={lots.data}
           pending={lots.isPending}
@@ -122,6 +146,7 @@ export function CattlePage() {
           pending={paddocks.isPending}
           error={paddocks.isError}
           onEdit={(item) => setEditor({ kind: "paddock", item })}
+          onDraw={(item) => setEditor({ kind: "boundary", paddock: item })}
         />
       )}
 
@@ -130,6 +155,15 @@ export function CattlePage() {
       )}
       {editor?.kind === "paddock" && (
         <PaddockEditor editor={editor} close={() => setEditor(null)} saved={refresh} />
+      )}
+      {editor?.kind === "boundary" && (
+        <BoundaryEditor
+          paddock={editor.paddock}
+          paddocks={paddocks.data ?? []}
+          farm={farm.data}
+          close={() => setEditor(null)}
+          saved={refresh}
+        />
       )}
       {editor?.kind === "placement" && (
         <PlacementEditor
@@ -185,11 +219,52 @@ function LotView({ lots, pending, error, onEdit, onPlace, onMove }: {
   </div>;
 }
 
-function PaddockView({ paddocks, pending, error, onEdit }: {
+function MapView({ paddocks, farm, pending, error, onDraw }: {
+  paddocks?: Paddock[];
+  farm?: Farm;
+  pending: boolean;
+  error: boolean;
+  onDraw(item: Paddock): void;
+}) {
+  if (pending) return <p className={styles.status}>Carregando o mapa…</p>;
+  if (error) return <p className={styles.error}>Não foi possível carregar os pastos.</p>;
+  if (!paddocks?.length) return <Empty text="Nenhum pasto cadastrado ainda." />;
+
+  const polygons = mappedPaddocks(paddocks);
+  const undrawn = paddocks.filter((paddock) => paddock.boundary?.space !== "geo");
+  const byId = new Map(paddocks.map((paddock) => [paddock.id, paddock]));
+
+  return <div className={styles.mapView}>
+    <div className={styles.mapCanvas}>
+      {polygons.length
+        ? <FarmMap
+            polygons={polygons}
+            home={farmHome(farm, polygons)}
+            label="Mapa da fazenda com os contornos dos pastos"
+            onSelect={(id) => { const paddock = byId.get(id); if (paddock) onDraw(paddock); }}
+          />
+        : <Empty text="Nenhum contorno desenhado ainda. Escolha um pasto abaixo e desenhe sobre o satélite." />}
+    </div>
+    <ul className={styles.mapList}>
+      {paddocks.map((paddock) => <li key={paddock.id} data-drawn={paddock.boundary?.space === "geo" || undefined}>
+        <div>
+          <strong>{paddock.name}</strong>
+          <span>Área útil {hectaresLabel(paddock.usableAreaHa)}</span>
+          <span>{paddock.boundary?.computedAreaHa ? `Contorno ${hectaresLabel(paddock.boundary.computedAreaHa)}` : "Sem contorno"}</span>
+        </div>
+        <button onClick={() => onDraw(paddock)}>{paddock.boundary?.space === "geo" ? "Editar contorno" : "Desenhar contorno"}</button>
+      </li>)}
+    </ul>
+    {undrawn.length > 0 && <p className={styles.formHint}>{undrawn.length === 1 ? "Um pasto ainda não aparece no mapa." : `${undrawn.length} pastos ainda não aparecem no mapa.`} Desenhar o contorno é o que dá área calculada e lugar ao pasto.</p>}
+  </div>;
+}
+
+function PaddockView({ paddocks, pending, error, onEdit, onDraw }: {
   paddocks?: Paddock[];
   pending: boolean;
   error: boolean;
   onEdit(item: Paddock): void;
+  onDraw(item: Paddock): void;
 }) {
   if (pending) return <p className={styles.status}>Percorrendo os pastos…</p>;
   if (error) return <p className={styles.error}>Não foi possível carregar os pastos.</p>;
@@ -198,7 +273,7 @@ function PaddockView({ paddocks, pending, error, onEdit }: {
     {paddocks.map((paddock) => {
       const heads = paddock.occupancies.reduce((sum, item) => sum + item.lot.headCount, 0);
       return <article key={paddock.id} data-occupied={paddock.occupancies.length > 0} data-inactive={!paddock.active}>
-        <header><span>{paddock.occupancies.length ? "Em pastejo" : "Disponível"}</span><button onClick={() => onEdit(paddock)}>Editar</button></header>
+        <header><span>{paddock.occupancies.length ? "Em pastejo" : "Disponível"}</span><div className={styles.cardActions}><button onClick={() => onDraw(paddock)}>{paddock.boundary?.space === "geo" ? "Contorno" : "Desenhar"}</button><button onClick={() => onEdit(paddock)}>Editar</button></div></header>
         <h2>{paddock.name}</h2>
         <p className={styles.forage}>{paddock.forageType || "Forrageira não informada"}</p>
         <div className={styles.occupancyMark}>
@@ -206,11 +281,13 @@ function PaddockView({ paddocks, pending, error, onEdit }: {
           {paddock.occupancies.map(({ lot }) => <small key={lot.id}>{lot.name}</small>)}
         </div>
         <dl>
-          <div><dt>Área útil</dt><dd>{paddock.usableAreaHa ? `${paddock.usableAreaHa} ha` : "Não informada"}</dd></div>
+          <div><dt>Área útil</dt><dd>{paddock.usableAreaHa ? `${paddock.usableAreaHa} ha` : "Não informada"}<small>Informada por você</small></dd></div>
+          <div><dt>Área do contorno</dt><dd>{paddock.boundary?.computedAreaHa ? `${paddock.boundary.computedAreaHa} ha` : "Sem contorno"}<small>Calculada do mapa</small></dd></div>
           <Setting label="Pastejo máximo" setting={paddock.effectiveSettings.maxGrazingDays} suffix=" dias" />
           <Setting label="Descanso mínimo" setting={paddock.effectiveSettings.minRestDays} suffix=" dias" />
           <div><dt>Capacidade planejada</dt><dd>{paddock.plannedCapacityHead ?? "Não informada"}</dd></div>
         </dl>
+        {divergenceNotice(paddock) && <p className={styles.divergence}>{divergenceNotice(paddock)}</p>}
       </article>;
     })}
   </div>;
@@ -232,7 +309,7 @@ function LotEditor({ editor, close, saved }: { editor: Extract<Editor, { kind: "
   }});
   const mutation = useMutation({ mutationFn: (payload: CattleLotPayload) => item ? cattleEndpoints.updateLot(item.id, payload) : cattleEndpoints.createLot(payload), onSuccess: saved });
   return <EditorShell title={item ? "Editar lote" : "Novo lote"} eyebrow="Rebanho" close={close}>
-    <form onSubmit={form.handleSubmit((values) => mutation.mutate({ ...values, headCount: Number(values.headCount), purpose: values.purpose || null, startedOn: values.startedOn || null, notes: values.notes || null }))}>
+    <form onSubmit={form.handleSubmit(({ active, ...values }) => mutation.mutate({ ...values, headCount: Number(values.headCount), purpose: values.purpose || null, startedOn: values.startedOn || null, notes: values.notes || null, ...(item ? { active } : {}) }))}>
       <label><span>Nome do lote</span><input {...form.register("name", { required: true })} placeholder="Ex.: Lote 14" /></label>
       <div className={styles.formGrid}>
         <label><span>Categoria</span><select {...form.register("category")}>{Object.entries(categoryLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
@@ -262,7 +339,8 @@ function PaddockEditor({ editor, close, saved }: { editor: Extract<Editor, { kin
     <form onSubmit={form.handleSubmit((values) => mutation.mutate({
       name: values.name, hectares: values.hectares || null, usableAreaHa: values.usableAreaHa || null,
       maxGrazingDays: optionalNumber(values.maxGrazingDays), minRestDays: optionalNumber(values.minRestDays),
-      plannedCapacityHead: optionalNumber(values.plannedCapacityHead), forageType: values.forageType || null, active: values.active,
+      plannedCapacityHead: optionalNumber(values.plannedCapacityHead), forageType: values.forageType || null,
+      ...(item ? { active: values.active } : {}),
     }))}>
       <label><span>Nome do pasto</span><input {...form.register("name", { required: true })} placeholder="Ex.: Pasto 7" /></label>
       <label><span>Forrageira</span><input {...form.register("forageType")} placeholder="Ex.: Mombaça" /></label>
@@ -280,6 +358,71 @@ function PaddockEditor({ editor, close, saved }: { editor: Extract<Editor, { kin
       {mutation.isError && <p className={styles.formError}>{errorMessage(mutation.error)}</p>}
       <footer><button type="button" onClick={close}>Cancelar</button><button className={styles.primary} disabled={mutation.isPending}>Salvar pasto</button></footer>
     </form>
+  </EditorShell>;
+}
+
+function BoundaryEditor({ paddock, paddocks, farm, close, saved }: {
+  paddock: Paddock;
+  paddocks: Paddock[];
+  farm?: Farm;
+  close(): void;
+  saved(): void;
+}) {
+  const drawn = paddock.boundary?.space === "geo" ? paddock.boundary.points : [];
+  const [points, setPoints] = useState<LngLat[]>(drawn);
+  const mutation = useMutation({
+    mutationFn: (next: LngLat[]) =>
+      cattleEndpoints.updatePaddock(paddock.id, {
+        boundary: next.length >= 3 ? { space: "geo", points: next } : null,
+      }),
+    onSuccess: saved,
+  });
+
+  const neighbours = mappedPaddocks(paddocks).filter((polygon) => polygon.id !== paddock.id);
+  const tracedHa = points.length >= 3 ? polygonAreaHa(points) : null;
+  const usableHa = paddock.usableAreaHa ? Number(paddock.usableAreaHa) : null;
+  const divergence =
+    tracedHa !== null && usableHa ? ((tracedHa - usableHa) / usableHa) * 100 : null;
+  const incomplete = points.length > 0 && points.length < 3;
+
+  return <EditorShell title={`Contorno de ${paddock.name}`} eyebrow="Desenho sobre o satélite" close={close} wide>
+    <p className={styles.editorIntro}>
+      Toque no satélite para marcar cada divisa, arraste um ponto para corrigir e toque nele para tirá-lo.
+      O contorno fica guardado em coordenadas reais.
+    </p>
+    <div className={styles.drawArea}>
+      <FarmMap
+        polygons={neighbours}
+        home={farmHome(farm, mappedPaddocks(paddocks))}
+        focusIds={neighbours.map((polygon) => polygon.id)}
+        label={`Desenho do contorno de ${paddock.name}`}
+        draft={{ points, onChange: setPoints }}
+      />
+    </div>
+    <dl className={styles.areaCompare}>
+      <div><dt>Área útil informada</dt><dd>{hectaresLabel(paddock.usableAreaHa)}</dd></div>
+      <div><dt>Área do contorno</dt><dd>{tracedHa === null ? "—" : `${tracedHa.toFixed(2)} ha`}</dd></div>
+    </dl>
+    {divergence !== null && Math.abs(divergence) >= 20 && <p className={styles.divergence}>
+      O contorno ficou {Math.abs(divergence).toFixed(0)}% {divergence > 0 ? "maior" : "menor"} que a área útil que você informou.
+      Traçado sobre o satélite entra capão, pedra, água e carreador, então isso é esperado — a área útil continua sendo a sua,
+      e é ela que as regras usam. Corrija a área útil no cadastro só se você quiser.
+    </p>}
+    {incomplete && <p className={styles.formError}>Um contorno precisa de pelo menos três pontos.</p>}
+    {mutation.isError && <p className={styles.formError}>{errorMessage(mutation.error)}</p>}
+    <footer className={styles.drawActions}>
+      <button type="button" onClick={() => setPoints(points.slice(0, -1))} disabled={!points.length}>Desfazer ponto</button>
+      <button type="button" onClick={() => setPoints([])} disabled={!points.length}>Limpar</button>
+      <button type="button" onClick={close}>Cancelar</button>
+      <button
+        type="button"
+        className={styles.primary}
+        disabled={incomplete || mutation.isPending}
+        onClick={() => mutation.mutate(points)}
+      >
+        {points.length >= 3 ? "Salvar contorno" : "Salvar sem contorno"}
+      </button>
+    </footer>
   </EditorShell>;
 }
 
@@ -344,6 +487,6 @@ function MovementEditor({ lot, paddocks, close, saved }: { lot: CattleLot; paddo
   </EditorShell>;
 }
 
-function EditorShell({ title, eyebrow, close, children }: { title: string; eyebrow: string; close(): void; children: React.ReactNode }) {
-  return <div className={styles.overlay} role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}><aside className={styles.editor} role="dialog" aria-modal="true" aria-label={title}><header><div><p className={styles.kicker}>{eyebrow}</p><h2>{title}</h2></div><button className={styles.close} onClick={close} aria-label="Fechar">×</button></header>{children}</aside></div>;
+function EditorShell({ title, eyebrow, close, wide, children }: { title: string; eyebrow: string; close(): void; wide?: boolean; children: React.ReactNode }) {
+  return <div className={styles.overlay} role="presentation" onMouseDown={(event) => event.target === event.currentTarget && close()}><aside className={styles.editor} data-wide={wide || undefined} role="dialog" aria-modal="true" aria-label={title}><header><div><p className={styles.kicker}>{eyebrow}</p><h2>{title}</h2></div><button className={styles.close} onClick={close} aria-label="Fechar">×</button></header>{children}</aside></div>;
 }
