@@ -251,6 +251,9 @@ const PADDOCKS = [
     name: 'Pasto 4',
     active: true,
     plannedCapacityHead: 120,
+    usableAreaHa: '58.00',
+    boundary: null,
+    areaDivergence: null,
     occupancies: [
       { lot: { id: SEED_IDS.lots.recria, name: 'Lote 12', headCount: 180 } },
     ],
@@ -260,6 +263,9 @@ const PADDOCKS = [
     name: 'Pasto 5',
     active: true,
     plannedCapacityHead: null,
+    usableAreaHa: '46.00',
+    boundary: null,
+    areaDivergence: null,
     occupancies: [
       { lot: { id: SEED_IDS.lots.bezerros, name: 'Lote 8', headCount: 96 } },
     ],
@@ -269,6 +275,9 @@ const PADDOCKS = [
     name: 'Pasto 6',
     active: true,
     plannedCapacityHead: null,
+    usableAreaHa: '52.00',
+    boundary: null,
+    areaDivergence: null,
     occupancies: [],
   },
 ];
@@ -345,16 +354,26 @@ export function evalAttentionService(): AttentionService {
   } as unknown as AttentionService;
 }
 
+const CATTLE_WRITE_ATTEMPTS: string[] = [];
+
+export function cattleWriteAttempts(): string[] {
+  return CATTLE_WRITE_ATTEMPTS;
+}
+
 /** Only the read path runs in the eval: writes stay behind human approval. */
 export function evalCattleService(): CattleService {
-  const approvalOnly = () =>
-    Promise.reject(new Error('Cattle writes are not executed in the eval.'));
+  const approvalOnly = (operation: string) => () => {
+    CATTLE_WRITE_ATTEMPTS.push(operation);
+    return Promise.reject(
+      new Error('Cattle writes are not executed in the eval.'),
+    );
+  };
 
   return {
     listLots: () => Promise.resolve(LOTS),
     listPaddocks: () => Promise.resolve(PADDOCKS),
-    createLot: approvalOnly,
-    moveLot: approvalOnly,
-    previewMove: approvalOnly,
+    createLot: approvalOnly('createLot'),
+    moveLot: approvalOnly('moveLot'),
+    previewMove: approvalOnly('previewMove'),
   } as unknown as CattleService;
 }

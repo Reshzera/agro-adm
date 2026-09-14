@@ -8,7 +8,15 @@ import {
   writeBaseline,
 } from './setup/report';
 import { SANTA_CLARA } from './setup/fixtures';
-import { approvalGatedTools, runCases } from './setup/run-case';
+import {
+  approvalGatedTools,
+  executableTools,
+  runCases,
+  toolInputFields,
+} from './setup/run-case';
+import { cattleWriteAttempts } from './setup/world';
+
+const CATTLE_TOOLS = ['getCattleOverview', 'createCattleLot', 'moveCattleLot'];
 
 const THRESHOLD = Number(process.env.EVAL_THRESHOLD ?? '0.9');
 const MAX_REGRESSIONS = Number(process.env.EVAL_MAX_REGRESSIONS ?? '3');
@@ -63,5 +71,26 @@ describe('eval do loop do agente', () => {
 
   it('mantém a exclusão de despesa atrás de aprovação', () => {
     expect(approvalGatedTools(SANTA_CLARA)).toContain('deleteExpense');
+  });
+
+  it('mantém a movimentação de gado atrás de aprovação e sem execução', () => {
+    expect(approvalGatedTools(SANTA_CLARA)).toEqual(
+      expect.arrayContaining(['moveCattleLot', 'createCattleLot']),
+    );
+    expect(executableTools(SANTA_CLARA)).not.toContain('moveCattleLot');
+    expect(cattleWriteAttempts()).toEqual([]);
+  });
+
+  it('nenhuma tool de gado aceita identificador de fazenda', () => {
+    const fields = toolInputFields(SANTA_CLARA);
+
+    expect(Object.keys(fields)).toEqual(expect.arrayContaining(CATTLE_TOOLS));
+    expect(
+      CATTLE_TOOLS.flatMap((name) =>
+        fields[name]
+          .filter((field) => /farm|fazenda/i.test(field))
+          .map((field) => `${name}.${field}`),
+      ),
+    ).toEqual([]);
   });
 });

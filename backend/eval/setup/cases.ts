@@ -14,8 +14,10 @@ import {
   money,
   month,
   noWrite,
+  occursOn,
   spans,
   wholeFarm,
+  within,
 } from './graders';
 import { serialize } from '../../src/modules/chat/tools/utils';
 import { SEED_IDS } from '../../src/seed/santa-clara';
@@ -175,6 +177,13 @@ export const cases: EvalCase[] = [
     grade: anyOf(
       { tool: 'getExpenses', check: matches('term', /vacin/i) },
       { tool: 'getExpenses', check: equals('category', 'ANIMAL_HEALTH') },
+      {
+        tool: 'openWorkspaceTable',
+        check: all(
+          equals('dataset', 'expenses'),
+          within('filters', equals('category', 'ANIMAL_HEALTH')),
+        ),
+      },
     ),
   },
   {
@@ -247,6 +256,26 @@ export const cases: EvalCase[] = [
     farm: SANTA_CLARA,
     prompt: 'prefiro digitar num formulário, abre aí pra eu lançar uma despesa',
     grade: calls('showManualForm', equals('kind', 'expense')),
+  },
+  {
+    id: 'move-lote-12-para-pasto-6',
+    title: 'movimentação clara vai para moveCattleLot com os ids certos',
+    farm: SANTA_CLARA,
+    prompt: 'passa o lote 12 do pasto 4 para o pasto 6',
+    grade: calls(
+      'moveCattleLot',
+      equals('lotId', SEED_IDS.lots.recria),
+      equals('fromPaddockId', SEED_IDS.areas.pasto4),
+      equals('toPaddockId', SEED_IDS.areas.pasto6),
+      occursOn('occurredAt', '2026-03-16'),
+    ),
+  },
+  {
+    id: 'move-lote-ambiguo',
+    title: 'lote não identificado — pergunta em vez de escolher um',
+    farm: SANTA_CLARA,
+    prompt: 'muda o lote pro pasto 6',
+    grade: noWrite(),
   },
   {
     id: 'onboarding-pergunta-primeiro',

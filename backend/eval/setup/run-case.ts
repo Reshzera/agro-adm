@@ -5,6 +5,7 @@ import {
   type Tool,
   type ToolSet,
 } from 'ai';
+import { z } from 'zod';
 import { agentStopWhen } from '../../src/modules/chat/agent-loop';
 import type { FarmAgentContext } from '../../src/modules/chat/chat.repository';
 import { systemPrompt } from '../../src/modules/chat/chat.service';
@@ -61,6 +62,44 @@ export function approvalGatedTools(farm: FarmAgentContext): string[] {
   return Object.entries(productionTools(farm))
     .filter(([, definition]) => definition.needsApproval)
     .map(([name]) => name);
+}
+
+export function executableTools(farm: FarmAgentContext): string[] {
+  return Object.entries(turnTools(farm))
+    .filter(([, definition]) => typeof definition.execute === 'function')
+    .map(([name]) => name);
+}
+
+function inputFields(schema: unknown): string[] {
+  const found: string[] = [];
+  const walk = (node: unknown): void => {
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (node === null || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(
+      node as Record<string, unknown>,
+    )) {
+      if (key === 'properties' && value !== null && typeof value === 'object') {
+        found.push(...Object.keys(value));
+      }
+      walk(value);
+    }
+  };
+  walk(z.toJSONSchema(schema as z.ZodType, { io: 'input' }));
+  return found;
+}
+
+export function toolInputFields(
+  farm: FarmAgentContext,
+): Record<string, string[]> {
+  return Object.fromEntries(
+    Object.entries(productionTools(farm)).map(([name, definition]) => [
+      name,
+      inputFields(definition.inputSchema),
+    ]),
+  );
 }
 
 async function runCase(

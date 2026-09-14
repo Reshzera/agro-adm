@@ -39,10 +39,14 @@ const READ_ONLY_TOOLS = [
   'getExpenses',
   'getRevenue',
   'getFinancialSummary',
+  'getCattleOverview',
+  'getAttentionItems',
+  'explainAttentionItem',
   'showManualForm',
   'openWorkspaceTable',
   'openWorkspaceEntity',
   'openWorkspaceChart',
+  'openWorkspaceMap',
 ];
 
 export function noWrite(): Grader {
@@ -115,6 +119,28 @@ export function date(field: string, expected: string): Check {
     return actual === expected
       ? null
       : `${field}=${show(input[field])} resolve para ${actual ?? 'nada'} ≠ ${expected}`;
+  };
+}
+
+export function within(field: string, ...checks: Check[]): Check {
+  return (input) => {
+    const value: unknown = input[field];
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return `${field}=${show(value)} não traz um objeto de filtros`;
+    }
+    return all(...checks)(value);
+  };
+}
+
+export function occursOn(field: string, expected: string): Check {
+  return (input) => {
+    const parsed = new Date(String(input[field]));
+    const actual = Number.isNaN(+parsed)
+      ? null
+      : parsed.toISOString().slice(0, 10);
+    return actual === expected
+      ? null
+      : `${field}=${show(input[field])} cai em ${actual ?? 'nada'} ≠ ${expected}`;
   };
 }
 

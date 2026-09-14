@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-09-11T13:50:16.537Z",
+  "updatedAt": "2026-09-14T14:52:24.738Z",
   "modelId": "gpt-5",
   "passing": [
     "despesa-diesel-hoje",
@@ -19,6 +19,8 @@
     "nao-apaga-sem-identificar",
     "corrige-valor-da-despesa",
     "formulario-manual",
+    "move-lote-12-para-pasto-6",
+    "move-lote-ambiguo",
     "onboarding-pergunta-primeiro",
     "onboarding-grava-area-total",
     "onboarding-contexto-substitui"
