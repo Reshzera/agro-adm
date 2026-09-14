@@ -12,6 +12,7 @@ import { chatTools } from '../../src/modules/chat/tools';
 import { SEED_CLOCK, SEED_IDS } from '../../src/seed/santa-clara';
 import type { CaseResult, EvalCase, RecordedCall } from './case';
 import {
+  evalAttentionService,
   evalCattleService,
   evalFarmService,
   evalFinancialService,
@@ -25,6 +26,8 @@ const READ_ONLY_TOOLS = [
   'getRevenue',
   'getFinancialSummary',
   'getCattleOverview',
+  'getAttentionItems',
+  'explainAttentionItem',
 ];
 
 function productionTools(farm: FarmAgentContext): Record<string, Tool> {
@@ -35,6 +38,7 @@ function productionTools(farm: FarmAgentContext): Record<string, Tool> {
     financial: evalFinancialService(),
     farms: evalFarmService(farm),
     cattle: evalCattleService(),
+    attention: evalAttentionService(),
   });
 }
 

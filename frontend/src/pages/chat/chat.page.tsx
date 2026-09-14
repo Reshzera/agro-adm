@@ -100,7 +100,10 @@ export function ChatPage() {
         key={activeChatId}
         chatId={activeChatId}
         loadHistory
-        onActivity={() => queryClient.invalidateQueries({ queryKey: ['chats'] })}
+        onActivity={() => {
+          void queryClient.invalidateQueries({ queryKey: ['chats'] })
+          void queryClient.invalidateQueries({ queryKey: ['workspace'] })
+        }}
       /> : <div className={styles.blank}>
         <span>01</span>
         <h2>Uma página nova<br />começa por aqui.</h2>

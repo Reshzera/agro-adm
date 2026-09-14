@@ -9,6 +9,7 @@ import {
 } from 'ai';
 import { randomUUID } from 'node:crypto';
 import { AiService } from '../ai/ai.service';
+import { AttentionService } from '../attention/attention.service';
 import { agentStopWhen } from './agent-loop';
 import { CattleService } from '../cattle/cattle.service';
 import { FinancialService } from '../financial/financial.service';
@@ -84,6 +85,9 @@ export function systemPrompt(farm: FarmAgentContext, now: Date): string {
     'Gráfico é openWorkspaceChart, no mesmo painel e com a mesma regra do comando completo: proporção entre categorias pede pie ou bar, evolução no tempo pede line com groupBy month ou day. Você escolhe a forma, o agrupamento e a medida; os valores o painel calcula da consulta, então não invente número nenhum no texto. Se o painel recusar a combinação, ele diz o motivo — corrija e mande de novo em vez de descrever o gráfico por escrito.',
     'Mapa é openWorkspaceMap: pergunta de lugar — onde está o lote, quem faz divisa, que pedaço está ocupado — abre o mapa enquadrado nos pastos citados, com os ids vindos de getCattleOverview. Você escolhe só o enquadramento. Contorno de pasto se desenha na tela de rebanho, com o dedo do produtor sobre o satélite; nenhuma ordem sua cria ou corrige contorno.',
     'Área do pasto tem dois números: a área aproveitável informada pelo produtor, que é a que manda nas regras, e a área calculada do contorno, que é indicativa e costuma ser maior porque o traçado engloba capão, pedra, água e carreador. Quando os dois divergem muito, comente como observação e pergunte, nunca trate a área calculada como correção do que o produtor informou.',
+    'Atenção: o que está pedindo atenção na fazenda vem de getAttentionItems, já com o valor medido, o limite que valeu e a regra que decidiu. Para mostrar a lista use openWorkspaceTable com dataset attentionItems, e um item específico com openWorkspaceEntity attentionItem — a ficha abre com a explicação gravada.',
+    'Quando o produtor perguntar por que um alerta apareceu, chame explainAttentionItem com o id do item e responda somente com o que ela devolver: os fatos medidos, o limite e sua origem, os eventos correlacionados, a regra e a versão. Não complete a explicação com raciocínio seu, não recalcule nada e não suponha causa que não esteja ali; se um dado faltar, diga que não foi registrado.',
+    'Alerta que não está mais na lista se resolveu sozinho — não o mencione como pendente nem peça para o produtor dispensá-lo.',
     'O painel é seu: você escreve, o produtor lê. Você não enxerga o que ele mexeu por conta própria na tela, então não afirme o que está sendo exibido além do que você mesmo mandou abrir.',
     ...onboarding,
   ].join('\n\n');
@@ -106,6 +110,7 @@ export class ChatService {
     private readonly financial: FinancialService,
     private readonly farms: FarmService,
     private readonly cattle: CattleService,
+    private readonly attention: AttentionService,
   ) {}
 
   list(farmId: string) {
@@ -156,6 +161,7 @@ export class ChatService {
         financial: this.financial,
         farms: this.farms,
         cattle: this.cattle,
+        attention: this.attention,
       }),
       stopWhen: agentStopWhen(),
     });

@@ -6,12 +6,12 @@ Items that have resolved themselves are gone from the panel without the producer
 
 **Blocked by:** 09, 11
 
-**Status:** ready-for-agent
+**Status:** implemented
 
-- [ ] The panel lists current attention items with their severity
-- [ ] Each item states the measured value and the configured threshold, not a bare warning
-- [ ] Opening an item shows the deterministic explanation, including which rule and which version decided
-- [ ] Asking the agent why an item appeared answers from the stored facts, and does not invent supporting detail
-- [ ] The explanation still renders when the model is unavailable
-- [ ] An item that resolved itself no longer appears
-- [ ] Each item links through to the paddock or lot it concerns
+- [x] The panel lists current attention items with their severity
+- [x] Each item states the measured value and the configured threshold, not a bare warning
+- [x] Opening an item shows the deterministic explanation, including which rule and which version decided
+- [x] Asking the agent why an item appeared answers from the stored facts, and does not invent supporting detail
+- [x] The explanation still renders when the model is unavailable
+- [x] An item that resolved itself no longer appears
+- [x] Each item links through to the paddock or lot it concerns

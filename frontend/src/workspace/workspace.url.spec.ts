@@ -47,6 +47,16 @@ describe('workspace links', () => {
     expect(viewFromSearchParams(new URLSearchParams('view=map'))).toEqual({ kind: 'map', paddockIds: [] })
   })
 
+  it('keeps the attention feed and a single item in the address', () => {
+    const feed: WorkspaceView = { kind: 'table', dataset: 'attentionItems', filters: {} }
+    const item: WorkspaceView = { kind: 'entity', entityType: 'attentionItem', entityId: 'item-1' }
+
+    expect(url(feed)).toBe('chat=chat-1&view=attentionItems')
+    expect(viewFromSearchParams(new URLSearchParams(url(feed)))).toEqual(feed)
+    expect(url(item)).toBe('chat=chat-1&view=attentionItem&entity=item-1')
+    expect(viewFromSearchParams(new URLSearchParams(url(item)))).toEqual(item)
+  })
+
   it('drops the panel from the address when nothing is open, keeping the conversation', () => {
     const params = applyViewToSearchParams(new URLSearchParams('chat=chat-1&view=expenses&from=2026-03-01'), null)
 

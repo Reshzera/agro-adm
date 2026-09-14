@@ -1,21 +1,40 @@
+import { attentionEndpoints } from '../../service/attention'
 import { cattleEndpoints } from '../../service/cattle'
 import { financialEndpoints } from '../../service/financial'
+import type {
+  AttentionExplanation,
+  AttentionItem,
+  AttentionMeasure,
+  AttentionScope,
+  AttentionSeverity,
+  AttentionThreshold,
+  ThresholdSource,
+} from '../../service/attention/responses'
 import type { CattleLot, Paddock, SettingSource } from '../../service/cattle/responses'
 import type { FinancialEntry } from '../../service/financial/responses'
 import { cattleCategoryLabel, categoryLabel, formatDate, formatMoney } from '../generative-ui/format'
 import type {
   WorkspaceDataset,
+  WorkspaceEntityType,
   WorkspaceFilters,
   WorkspaceGrouping,
   WorkspaceMeasure,
 } from '../../workspace/workspace.commands'
 import type { WorkspaceFact } from '../../workspace/workspace.series'
 
+export type WorkspaceRowLink = {
+  label: string
+  entityType: WorkspaceEntityType
+  entityId: string
+}
+
 export type WorkspaceRow = {
   id: string
   title: string
   cells: string[]
   details: { label: string; value: string }[]
+  tone?: 'info' | 'warning' | 'critical'
+  links?: WorkspaceRowLink[]
 }
 
 export type WorkspaceDatasetDefinition = {
@@ -26,6 +45,7 @@ export type WorkspaceDatasetDefinition = {
   usesFilters: boolean
   load(filters: WorkspaceFilters, signal?: AbortSignal): Promise<WorkspaceRow[]>
   facts(filters: WorkspaceFilters, signal?: AbortSignal): Promise<WorkspaceFact[]>
+  detail?(entityId: string, signal?: AbortSignal): Promise<WorkspaceRow>
 }
 
 type DatasetSource<T> = {
@@ -37,6 +57,7 @@ type DatasetSource<T> = {
   fetch(filters: WorkspaceFilters, signal?: AbortSignal): Promise<T[]>
   row(item: T): WorkspaceRow
   fact(item: T): WorkspaceFact
+  detail?(entityId: string, signal?: AbortSignal): Promise<WorkspaceRow>
 }
 
 function defineDataset<T>(source: DatasetSource<T>): WorkspaceDatasetDefinition {
@@ -48,6 +69,7 @@ function defineDataset<T>(source: DatasetSource<T>): WorkspaceDatasetDefinition 
     usesFilters: source.usesFilters,
     load: async (filters, signal) => (await source.fetch(filters, signal)).map(source.row),
     facts: async (filters, signal) => (await source.fetch(filters, signal)).map(source.fact),
+    ...(source.detail ? { detail: source.detail } : {}),
   }
 }
 
@@ -175,6 +197,164 @@ function paddockFact(paddock: Paddock): WorkspaceFact {
   }
 }
 
+const severityLabels: Record<AttentionSeverity, string> = {
+  CRITICAL: 'Crítico',
+  WARNING: 'Atenção',
+  INFO: 'Informativo',
+}
+
+const severityTones: Record<AttentionSeverity, 'info' | 'warning' | 'critical'> = {
+  CRITICAL: 'critical',
+  WARNING: 'warning',
+  INFO: 'info',
+}
+
+const thresholdSourceLabels: Record<ThresholdSource, string> = {
+  PADDOCK: 'limite do próprio pasto',
+  FARM: 'padrão da fazenda',
+  UNCONFIGURED: 'sem limite configurado',
+}
+
+const unitLabels: Record<string, string> = { head: 'cabeças', days: 'dias' }
+
+const factLabels: Record<string, string> = {
+  currentHeadCount: 'Cabeças no pasto',
+  usableAreaHa: 'Área aproveitável (ha)',
+  configuredStockingRateHeadPerHa: 'Lotação configurada (cab/ha)',
+  utilizationPercent: 'Uso da lotação (%)',
+  previousOccupancyEndedAt: 'Pasto vagou em',
+  destinationEntryAt: 'Gado entrou em',
+  restDays: 'Dias de descanso',
+  occupancyStartedAt: 'Ocupação começou em',
+  evaluatedAt: 'Avaliado em',
+  grazingDays: 'Dias de pastejo',
+  reviewDueAt: 'Revisão prevista para',
+}
+
+const scopeNouns: Record<AttentionScope['type'], string> = {
+  FARM: 'a fazenda',
+  PADDOCK: 'o pasto',
+  LOT: 'o lote',
+  ANIMAL: 'o animal',
+}
+
+const dateTimeFormat = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T/
+
+function formatInstant(value: string): string {
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? value : dateTimeFormat.format(parsed)
+}
+
+function decimal(value: number): string {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+}
+
+function measureText(measure: AttentionMeasure | null): string {
+  if (!measure || measure.value === null) return 'não registrado'
+  return `${decimal(measure.value)} ${measure.unit}`
+}
+
+function thresholdText(threshold: AttentionThreshold): string {
+  const unit = threshold.unit ? (unitLabels[threshold.unit] ?? threshold.unit) : ''
+  const source = thresholdSourceLabels[threshold.source]
+  if (threshold.value === null) return source
+  return `${decimal(threshold.value)}${unit ? ` ${unit}` : ''} (${source})`
+}
+
+function factText(value: unknown): string {
+  if (value === null || value === undefined) return 'não registrado'
+  if (typeof value === 'number') return decimal(value)
+  if (typeof value === 'string') return ISO_INSTANT.test(value) ? formatInstant(value) : value
+  return JSON.stringify(value)
+}
+
+function factDetails(facts: Record<string, unknown> | null) {
+  return Object.entries(facts ?? {}).map(([key, value]) => ({
+    label: factLabels[key] ?? key,
+    value: factText(value),
+  }))
+}
+
+function scopeLink(scope: AttentionScope): WorkspaceRowLink[] {
+  if (scope.type === 'PADDOCK')
+    return [{ label: `Ver ${scope.name ?? 'o pasto'}`, entityType: 'paddock', entityId: scope.id }]
+  if (scope.type === 'LOT')
+    return [{ label: `Ver ${scope.name ?? 'o lote'}`, entityType: 'cattleLot', entityId: scope.id }]
+  return []
+}
+
+function scopeText(scope: AttentionScope): string {
+  return scope.name ?? scopeNouns[scope.type]
+}
+
+function attentionRow(item: AttentionItem): WorkspaceRow {
+  return {
+    id: item.id,
+    title: item.title,
+    tone: severityTones[item.severity],
+    cells: [
+      severityLabels[item.severity],
+      item.summary,
+      scopeText(item.scope),
+      formatInstant(item.lastSeenAt),
+    ],
+    details: [
+      { label: 'Situação', value: item.summary },
+      { label: item.measured?.label ?? 'Medido', value: measureText(item.measured) },
+      { label: 'Limite aplicado', value: thresholdText(item.threshold) },
+      { label: 'Gravidade', value: severityLabels[item.severity] },
+      { label: 'Regra', value: `${item.ruleId} · versão ${item.ruleVersion}` },
+      { label: 'Visto primeiro em', value: formatInstant(item.firstSeenAt) },
+      { label: 'Última avaliação', value: formatInstant(item.lastSeenAt) },
+    ],
+    links: scopeLink(item.scope),
+  }
+}
+
+function explanationRow(explanation: AttentionExplanation): WorkspaceRow {
+  const events = explanation.sourceEvents.map(
+    (event) => `${event.eventType} em ${formatInstant(event.occurredAt)}`,
+  )
+  const action = explanation.suggestedAction?.action
+  const decision = [
+    { label: 'Situação', value: explanation.summary },
+    {
+      label: explanation.measured?.label ?? 'Medido',
+      value: measureText(explanation.measured),
+    },
+    { label: 'Limite aplicado', value: thresholdText(explanation.threshold) },
+    { label: 'Onde', value: scopeText(explanation.scope) },
+    { label: 'Regra', value: explanation.ruleId },
+    { label: 'Versão da regra', value: `versão ${explanation.ruleVersion}` },
+    { label: 'Avaliado em', value: formatInstant(explanation.evaluatedAt) },
+  ]
+  const decided = new Set(decision.map((field) => field.label))
+
+  return {
+    id: explanation.attentionItemId,
+    title: explanation.ruleTitle,
+    tone: explanation.severity ? severityTones[explanation.severity] : undefined,
+    cells: [],
+    details: [
+      ...decision,
+      ...factDetails(explanation.facts).filter((fact) => !decided.has(fact.label)),
+      {
+        label: 'Eventos de origem',
+        value: events.length ? events.join(' · ') : 'nenhum evento correlacionado',
+      },
+      ...(typeof action === 'string' ? [{ label: 'Sugestão', value: action }] : []),
+    ],
+    links: scopeLink(explanation.scope),
+  }
+}
+
 export const workspaceDatasetDefinitions: Record<WorkspaceDataset, WorkspaceDatasetDefinition> = {
   expenses: defineDataset({
     label: 'Despesas',
@@ -212,6 +392,18 @@ export const workspaceDatasetDefinitions: Record<WorkspaceDataset, WorkspaceData
     fetch: async (_filters, signal) => (await cattleEndpoints.lots(signal)).data,
     row: lotRow,
     fact: lotFact,
+  }),
+  attentionItems: defineDataset({
+    label: 'Pedindo atenção',
+    singular: 'Item de atenção',
+    noun: 'itens de atenção',
+    columns: ['Gravidade', 'O que está acontecendo', 'Onde', 'Última avaliação'],
+    usesFilters: false,
+    fetch: async (_filters, signal) => (await attentionEndpoints.items(signal)).data,
+    row: attentionRow,
+    fact: () => ({ keys: {}, values: { count: 1 } }),
+    detail: async (entityId, signal) =>
+      explanationRow((await attentionEndpoints.explanation(entityId, signal)).data),
   }),
   paddocks: defineDataset({
     label: 'Pastos',

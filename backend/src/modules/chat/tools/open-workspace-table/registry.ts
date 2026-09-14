@@ -7,6 +7,7 @@ export const workspaceDatasets = [
   'revenues',
   'cattleLots',
   'paddocks',
+  'attentionItems',
 ] as const;
 
 export const openWorkspaceTableRegistry = {
@@ -17,7 +18,7 @@ export const openWorkspaceTableRegistry = {
       dataset: z
         .enum(workspaceDatasets)
         .describe(
-          'Conjunto exibido: expenses (despesas), revenues (receitas), cattleLots (lotes de gado) ou paddocks (pastos).',
+          'Conjunto exibido: expenses (despesas), revenues (receitas), cattleLots (lotes de gado), paddocks (pastos) ou attentionItems (o que está pedindo atenção, em ordem de gravidade).',
         ),
       title: z
         .string()

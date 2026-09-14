@@ -1,3 +1,4 @@
+import type { AttentionService } from '../../attention/attention.service';
 import type { CattleService } from '../../cattle/cattle.service';
 import type { FinancialService } from '../../financial/financial.service';
 import type { FarmService } from '../../farm/farm.service';
@@ -9,4 +10,5 @@ export type ToolContext = {
   financial: FinancialService;
   farms: FarmService;
   cattle: CattleService;
+  attention: AttentionService;
 };

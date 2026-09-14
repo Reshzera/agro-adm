@@ -5,6 +5,8 @@ import { chatTools } from '../../src/modules/chat/tools';
 import { createCattleLotRegistry } from '../../src/modules/chat/tools/create-cattle-lot/registry';
 import { createExpenseRegistry } from '../../src/modules/chat/tools/create-expense/registry';
 import { deleteExpenseRegistry } from '../../src/modules/chat/tools/delete-expense/registry';
+import { explainAttentionItemRegistry } from '../../src/modules/chat/tools/explain-attention-item/registry';
+import { getAttentionItemsRegistry } from '../../src/modules/chat/tools/get-attention-items/registry';
 import { createRevenueRegistry } from '../../src/modules/chat/tools/create-revenue/registry';
 import { getExpensesRegistry } from '../../src/modules/chat/tools/get-expenses/registry';
 import { getCattleOverviewRegistry } from '../../src/modules/chat/tools/get-cattle-overview/registry';
@@ -21,6 +23,7 @@ import { updateExpenseRegistry } from '../../src/modules/chat/tools/update-expen
 import { updateFarmRegistry } from '../../src/modules/chat/tools/update-farm/registry';
 import { updateFarmContextRegistry } from '../../src/modules/chat/tools/update-farm-context/registry';
 import { updateRevenueRegistry } from '../../src/modules/chat/tools/update-revenue/registry';
+import type { AttentionService } from '../../src/modules/attention/attention.service';
 import type { CattleService } from '../../src/modules/cattle/cattle.service';
 import type { FinancialService } from '../../src/modules/financial/financial.service';
 import type { FarmService } from '../../src/modules/farm/farm.service';
@@ -115,6 +118,33 @@ function toolsForTest() {
       }),
     ),
   };
+  const attention = {
+    list: jest.fn(() =>
+      Promise.resolve([
+        {
+          id: 'attention-stocking',
+          severity: 'WARNING',
+          ruleId: 'paddock.stocking_level',
+          ruleVersion: 1,
+          summary:
+            'Pasto 4 está com 180 cabeças, acima da lotação de 120 (limite do próprio pasto).',
+          scope: { type: 'PADDOCK', id: 'paddock-4', name: 'Pasto 4' },
+        },
+      ]),
+    ),
+    explain: jest.fn(() =>
+      Promise.resolve({
+        attentionItemId: 'attention-stocking',
+        ruleId: 'paddock.stocking_level',
+        ruleVersion: 1,
+        facts: { currentHeadCount: 180 },
+        configurationUsed: {
+          threshold: { value: 120, unit: 'head', source: 'PADDOCK' },
+        },
+        sourceEvents: [{ id: 'event-1', eventType: 'CattleLotMoved' }],
+      }),
+    ),
+  };
   return {
     tools: chatTools({
       farmId: FARM_ID,
@@ -123,10 +153,12 @@ function toolsForTest() {
       financial: financial as unknown as FinancialService,
       farms: farms as unknown as FarmService,
       cattle: cattle as unknown as CattleService,
+      attention: attention as unknown as AttentionService,
     }),
     financial,
     farms,
     cattle,
+    attention,
   };
 }
 
@@ -216,6 +248,8 @@ describe('chat financial tools', () => {
       openWorkspaceEntityRegistry.inputSchema,
       openWorkspaceChartRegistry.inputSchema,
       openWorkspaceMapRegistry.inputSchema,
+      getAttentionItemsRegistry.inputSchema,
+      explainAttentionItemRegistry.inputSchema,
     ];
 
     for (const schema of schemas) {
@@ -224,6 +258,51 @@ describe('chat financial tools', () => {
     expect(
       getFarmRegistry.inputSchema.safeParse({ farmId: 'attempted-override' })
         .success,
+    ).toBe(false);
+  });
+
+  it('reads the attention feed of the authenticated farm', async () => {
+    const { tools, attention } = toolsForTest();
+
+    const items = (await tools.getAttentionItems.execute!(
+      {},
+      TOOL_EXECUTION_OPTIONS,
+    )) as { id: string; summary: string }[];
+
+    expect(attention.list).toHaveBeenCalledWith(FARM_ID);
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe('attention-stocking');
+    expect(items[0].summary).toContain('acima da lotação de 120');
+  });
+
+  it('answers why an item appeared from the stored explanation, never from the model', async () => {
+    const { tools, attention } = toolsForTest();
+
+    const explanation = await tools.explainAttentionItem.execute!(
+      { attentionItemId: 'attention-stocking' },
+      TOOL_EXECUTION_OPTIONS,
+    );
+
+    expect(attention.explain).toHaveBeenCalledWith(
+      FARM_ID,
+      'attention-stocking',
+    );
+    expect(explanation).toEqual(
+      expect.objectContaining({
+        ruleId: 'paddock.stocking_level',
+        ruleVersion: 1,
+        facts: { currentHeadCount: 180 },
+        configurationUsed: {
+          threshold: { value: 120, unit: 'head', source: 'PADDOCK' },
+        },
+        sourceEvents: [{ id: 'event-1', eventType: 'CattleLotMoved' }],
+      }),
+    );
+    expect(
+      explainAttentionItemRegistry.inputSchema.safeParse({
+        attentionItemId: 'attention-stocking',
+        reason: 'porque o pasto lotou',
+      }).success,
     ).toBe(false);
   });
 

@@ -4,6 +4,10 @@ import { createCattleLotRegistry } from './create-cattle-lot/registry';
 import { createExpense } from './create-expense/implementation';
 import { createExpenseRegistry } from './create-expense/registry';
 import { deleteExpense } from './delete-expense/implementation';
+import { explainAttentionItem } from './explain-attention-item/implementation';
+import { explainAttentionItemRegistry } from './explain-attention-item/registry';
+import { getAttentionItems } from './get-attention-items/implementation';
+import { getAttentionItemsRegistry } from './get-attention-items/registry';
 import { deleteExpenseRegistry } from './delete-expense/registry';
 import { createRevenue } from './create-revenue/implementation';
 import { createRevenueRegistry } from './create-revenue/registry';
@@ -80,6 +84,14 @@ export function chatTools(context: ToolContext) {
     getCattleOverview: tool({
       ...getCattleOverviewRegistry,
       execute: () => getCattleOverview(context),
+    }),
+    getAttentionItems: tool({
+      ...getAttentionItemsRegistry,
+      execute: () => getAttentionItems(context),
+    }),
+    explainAttentionItem: tool({
+      ...explainAttentionItemRegistry,
+      execute: (input) => explainAttentionItem(context, input),
     }),
     createCattleLot: tool({
       ...createCattleLotRegistry,

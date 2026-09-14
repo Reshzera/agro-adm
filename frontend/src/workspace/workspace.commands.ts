@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { ExpenseCategory } from '../service/financial/responses'
 
-export const workspaceDatasets = ['expenses', 'revenues', 'cattleLots', 'paddocks'] as const
-export const workspaceEntities = ['expense', 'revenue', 'cattleLot', 'paddock'] as const
+export const workspaceDatasets = ['expenses', 'revenues', 'cattleLots', 'paddocks', 'attentionItems'] as const
+export const workspaceEntities = ['expense', 'revenue', 'cattleLot', 'paddock', 'attentionItem'] as const
 export const workspaceToolNames = [
   'openWorkspaceTable',
   'openWorkspaceEntity',
@@ -41,6 +41,7 @@ export const workspaceChartCapabilities: Record<
   revenues: { groupings: ['month', 'day'], measures: ['amount', 'count'] },
   cattleLots: { groupings: ['cattleCategory', 'paddock'], measures: ['headCount', 'count'] },
   paddocks: { groupings: ['paddock'], measures: ['hectares', 'headCount', 'count'] },
+  attentionItems: { groupings: [], measures: [] },
 }
 
 export const groupingLabels: Record<WorkspaceGrouping, string> = {
@@ -155,6 +156,8 @@ function rejection(error: z.ZodError): WorkspaceCommandResult {
 
 function unsupportedChart(command: z.infer<typeof chartCommandSchema>): string | null {
   const capability = workspaceChartCapabilities[command.dataset]
+  if (capability.groupings.length === 0 || capability.measures.length === 0)
+    return `O painel não desenha gráfico de ${command.dataset}: esse conjunto se lê em tabela.`
   if (!capability.groupings.includes(command.groupBy))
     return `O painel não separa ${command.dataset} por ${command.groupBy}. Nesse conjunto dá para agrupar por ${capability.groupings.join(', ')}.`
   if (!capability.measures.includes(command.measure))
@@ -223,6 +226,8 @@ export function datasetForEntity(entityType: WorkspaceEntityType): WorkspaceData
       return 'cattleLots'
     case 'paddock':
       return 'paddocks'
+    case 'attentionItem':
+      return 'attentionItems'
   }
 }
 
@@ -236,5 +241,7 @@ export function entityForDataset(dataset: WorkspaceDataset): WorkspaceEntityType
       return 'cattleLot'
     case 'paddocks':
       return 'paddock'
+    case 'attentionItems':
+      return 'attentionItem'
   }
 }

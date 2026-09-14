@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AttentionModule } from '../attention/attention.module';
 import { CattleModule } from '../cattle/cattle.module';
 import { FinancialModule } from '../financial/financial.module';
 import { FarmModule } from '../farm/farm.module';
@@ -7,7 +8,7 @@ import { ChatRepository } from './chat.repository';
 import { ChatService } from './chat.service';
 
 @Module({
-  imports: [FinancialModule, FarmModule, CattleModule],
+  imports: [FinancialModule, FarmModule, CattleModule, AttentionModule],
   controllers: [ChatController],
   providers: [ChatRepository, ChatService],
 })

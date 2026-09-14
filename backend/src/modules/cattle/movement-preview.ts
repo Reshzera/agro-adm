@@ -1,9 +1,6 @@
-import {
-  RuleEvaluationStatus,
-  type Prisma,
-  type RuleSeverity,
-} from '@prisma/client';
+import { RuleEvaluationStatus, type RuleSeverity } from '@prisma/client';
 import { describeRule } from '../rule-engine/rule.messages';
+import { numericFact, readThreshold } from '../rule-engine/rule.threshold';
 import type { RulePreview, ThresholdSource } from '../rule-engine/rule.types';
 
 const STOCKING_RULE = 'paddock.stocking_level';
@@ -31,36 +28,13 @@ type PreviewSubjects = {
   evaluations: RulePreview[];
 };
 
-function numeric(
-  source: Prisma.InputJsonObject | undefined,
-  key: string,
-): number | null {
-  const value = source?.[key];
-  return typeof value === 'number' ? value : null;
-}
-
-function thresholdOf(evaluation: RulePreview | undefined): {
-  value: number | null;
-  source: ThresholdSource;
-} {
-  const raw = evaluation?.configSnapshot.threshold;
-  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
-    return { value: null, source: 'UNCONFIGURED' };
-  }
-  const record = raw as Prisma.InputJsonObject;
-  return {
-    value: numeric(record, 'value'),
-    source: (record.source as ThresholdSource | undefined) ?? 'UNCONFIGURED',
-  };
-}
-
 export function presentMovementPreview(
   subjects: PreviewSubjects,
 ): MovementPreview {
   const stocking = subjects.evaluations.find(
     (evaluation) => evaluation.ruleId === STOCKING_RULE,
   );
-  const capacity = thresholdOf(stocking);
+  const capacity = readThreshold(stocking?.configSnapshot);
   const subject = { lotName: subjects.lot.name, paddockName: subjects.to.name };
 
   return {
@@ -70,10 +44,10 @@ export function presentMovementPreview(
     occurredAt: subjects.occurredAt.toISOString(),
     headCount: subjects.lot.headCount,
     destination: {
-      headCountAfter: numeric(stocking?.facts, 'currentHeadCount'),
+      headCountAfter: numericFact(stocking?.facts, 'currentHeadCount'),
       capacity: capacity.value,
       capacitySource: capacity.source,
-      utilizationPercent: numeric(stocking?.facts, 'utilizationPercent'),
+      utilizationPercent: numericFact(stocking?.facts, 'utilizationPercent'),
     },
     warnings: subjects.evaluations
       .filter(

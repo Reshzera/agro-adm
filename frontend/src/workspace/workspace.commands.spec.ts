@@ -163,6 +163,29 @@ describe('workspace command validation', () => {
     ).toBe(false)
   })
 
+  it('opens the attention feed as a table and one item as a record', () => {
+    expect(parseWorkspaceCommand('openWorkspaceTable', { dataset: 'attentionItems' })).toEqual({
+      ok: true,
+      view: { kind: 'table', dataset: 'attentionItems', filters: {} },
+    })
+    expect(parseWorkspaceCommand('openWorkspaceEntity', { entityType: 'attentionItem', entityId: 'item-1' })).toEqual({
+      ok: true,
+      view: { kind: 'entity', entityType: 'attentionItem', entityId: 'item-1' },
+    })
+  })
+
+  it('refuses to turn the attention feed into a chart, saying it is read as a table', () => {
+    const parsed = parseWorkspaceCommand('openWorkspaceChart', {
+      dataset: 'attentionItems',
+      shape: 'pie',
+      groupBy: 'category',
+      measure: 'count',
+    })
+
+    expect(parsed.ok).toBe(false)
+    expect(parsed).toHaveProperty('error', expect.stringContaining('tabela'))
+  })
+
   it('rejects an entity without an id', () => {
     expect(parseWorkspaceCommand('openWorkspaceEntity', { entityType: 'expense', entityId: '  ' }).ok).toBe(false)
     expect(parseWorkspaceCommand('openWorkspaceEntity', { entityType: 'tractor', entityId: 'x' }).ok).toBe(false)

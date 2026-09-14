@@ -46,6 +46,16 @@ function setup() {
     domainEvent: {
       findMany: jest.fn(() => Promise.resolve([])),
     },
+    farmArea: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ id: 'paddock-1', name: 'Pasto 4' }]),
+      ),
+    },
+    cattleLot: {
+      findMany: jest.fn(() =>
+        Promise.resolve([{ id: 'lot-1', name: 'Lote 12' }]),
+      ),
+    },
   };
   const repository = new AttentionRepository({
     client,
@@ -151,6 +161,44 @@ describe('AttentionRepository', () => {
 
     expect(client.farmAttentionItem.updateMany).not.toHaveBeenCalled();
     expect(client.farmAttentionItem.create).not.toHaveBeenCalled();
+  });
+
+  it('asks only for open items, gravest first, with the snapshot that decided them', async () => {
+    const { client, repository } = setup();
+    client.farmAttentionItem.findMany.mockReturnValueOnce(Promise.resolve([]));
+
+    await repository.list('farm-1');
+
+    expect(client.farmAttentionItem.findMany).toHaveBeenCalledWith({
+      where: {
+        farmId: 'farm-1',
+        status: { in: [AttentionItemStatus.NEW, AttentionItemStatus.SEEN] },
+      },
+      orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
+      include: {
+        ruleEvaluation: { select: { configSnapshot: true, evaluatedAt: true } },
+      },
+    });
+  });
+
+  it('resolves the paddock and the lot each item points at, within the farm', async () => {
+    const { client, repository } = setup();
+
+    const names = await repository.scopeNames('farm-1', [
+      { scopeType: AttentionScopeType.PADDOCK, scopeId: 'paddock-1' },
+      { scopeType: AttentionScopeType.LOT, scopeId: 'lot-1' },
+    ]);
+
+    expect(client.farmArea.findMany).toHaveBeenCalledWith({
+      where: { farmId: 'farm-1', id: { in: ['paddock-1'] } },
+      select: { id: true, name: true },
+    });
+    expect(client.cattleLot.findMany).toHaveBeenCalledWith({
+      where: { farmId: 'farm-1', id: { in: ['lot-1'] } },
+      select: { id: true, name: true },
+    });
+    expect(names.get('PADDOCK:paddock-1')).toBe('Pasto 4');
+    expect(names.get('LOT:lot-1')).toBe('Lote 12');
   });
 
   it('builds an explanation from the historical evaluation and correlated events', async () => {

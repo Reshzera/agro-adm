@@ -26,7 +26,7 @@ export const openWorkspaceChartRegistry = {
       dataset: z
         .enum(workspaceDatasets)
         .describe(
-          'Conjunto medido: expenses (despesas), revenues (receitas), cattleLots (lotes) ou paddocks (pastos).',
+          'Conjunto medido: expenses (despesas), revenues (receitas), cattleLots (lotes) ou paddocks (pastos). attentionItems não vira gráfico.',
         ),
       shape: z
         .enum(workspaceChartShapes)

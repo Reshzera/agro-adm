@@ -1,4 +1,15 @@
-import { CattleCategory, EntrySource, ExpenseCategory } from '@prisma/client';
+import {
+  AttentionItemStatus,
+  AttentionScopeType,
+  CattleCategory,
+  EntrySource,
+  ExpenseCategory,
+  RuleEvaluationStatus,
+  RuleSeverity,
+} from '@prisma/client';
+import { presentAttentionItem } from '../../src/modules/attention/attention.presenter';
+import { scopeKey } from '../../src/modules/attention/attention.repository';
+import type { AttentionService } from '../../src/modules/attention/attention.service';
 import type { CattleService } from '../../src/modules/cattle/cattle.service';
 import type { FarmAgentContext } from '../../src/modules/chat/chat.repository';
 import { FarmRepository } from '../../src/modules/farm/farm.repository';
@@ -261,6 +272,78 @@ const PADDOCKS = [
     occupancies: [],
   },
 ];
+
+const ATTENTION_EVALUATED_AT = new Date('2026-03-04T11:00:00.000Z');
+const ATTENTION_CORRELATION_ID = 'eval-movement-lote-12-pasto-4';
+const ATTENTION_CONFIG = {
+  threshold: { value: 120, unit: 'head', source: 'PADDOCK' },
+  derivation: 'plannedCapacityHead',
+};
+const ATTENTION_FACTS = {
+  currentHeadCount: 180,
+  usableAreaHa: 58,
+  configuredStockingRateHeadPerHa: 1.8,
+  utilizationPercent: 150,
+};
+
+const STORED_ATTENTION_ITEM = {
+  id: 'eval-attention-pasto-4-lotacao',
+  status: AttentionItemStatus.NEW,
+  severity: RuleSeverity.WARNING,
+  category: 'CATTLE',
+  ruleId: 'paddock.stocking_level',
+  ruleVersion: 1,
+  scopeType: AttentionScopeType.PADDOCK,
+  scopeId: SEED_IDS.areas.pasto4,
+  facts: ATTENTION_FACTS,
+  suggestedAction: { action: 'review_paddock_stocking' },
+  correlationId: ATTENTION_CORRELATION_ID,
+  firstSeenAt: ATTENTION_EVALUATED_AT,
+  lastSeenAt: ATTENTION_EVALUATED_AT,
+  ruleEvaluation: { configSnapshot: ATTENTION_CONFIG },
+};
+
+const ATTENTION_SCOPE_NAMES = new Map([
+  [scopeKey(AttentionScopeType.PADDOCK, SEED_IDS.areas.pasto4), 'Pasto 4'],
+]);
+
+/** The eval reads the same projection the panel reads: no model writes an alert. */
+export function evalAttentionService(): AttentionService {
+  const item = presentAttentionItem(
+    STORED_ATTENTION_ITEM,
+    ATTENTION_SCOPE_NAMES,
+  );
+
+  return {
+    list: () => Promise.resolve([item]),
+    explain: (_farmId: string, id: string) =>
+      id === item.id
+        ? Promise.resolve({
+            attentionItemId: item.id,
+            attentionItemStatus: item.status,
+            decisionType: 'RULE_EVALUATION',
+            ruleEvaluationId: 'eval-rule-evaluation-pasto-4',
+            ruleId: item.ruleId,
+            ruleTitle: item.title,
+            ruleVersion: item.ruleVersion,
+            status: RuleEvaluationStatus.TRIGGERED,
+            severity: item.severity,
+            scope: item.scope,
+            scopeType: item.scope.type,
+            scopeId: item.scope.id,
+            summary: item.summary,
+            measured: item.measured,
+            threshold: item.threshold,
+            facts: ATTENTION_FACTS,
+            configurationUsed: ATTENTION_CONFIG,
+            sourceEvents: [],
+            suggestedAction: item.suggestedAction,
+            correlationId: ATTENTION_CORRELATION_ID,
+            evaluatedAt: ATTENTION_EVALUATED_AT,
+          })
+        : Promise.reject(new Error('Attention item not found.')),
+  } as unknown as AttentionService;
+}
 
 /** Only the read path runs in the eval: writes stay behind human approval. */
 export function evalCattleService(): CattleService {

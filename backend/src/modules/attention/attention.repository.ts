@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   AttentionItemStatus,
+  AttentionScopeType,
   Prisma,
   RuleEvaluationStatus,
 } from '@prisma/client';
@@ -11,6 +12,10 @@ import type {
 } from './attention.types';
 
 const OPEN_STATUSES = [AttentionItemStatus.NEW, AttentionItemStatus.SEEN];
+
+export function scopeKey(type: AttentionScopeType, id: string): string {
+  return `${type}:${id}`;
+}
 
 function inputJson(value: Prisma.JsonValue): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
@@ -36,7 +41,52 @@ export class AttentionRepository {
         status: status ?? { in: OPEN_STATUSES },
       },
       orderBy: [{ severity: 'desc' }, { lastSeenAt: 'desc' }],
+      include: {
+        ruleEvaluation: {
+          select: { configSnapshot: true, evaluatedAt: true },
+        },
+      },
     });
+  }
+
+  async scopeNames(
+    farmId: string,
+    scopes: { scopeType: AttentionScopeType; scopeId: string }[],
+  ): Promise<Map<string, string>> {
+    const paddockIds = scopes
+      .filter((scope) => scope.scopeType === AttentionScopeType.PADDOCK)
+      .map((scope) => scope.scopeId);
+    const lotIds = scopes
+      .filter((scope) => scope.scopeType === AttentionScopeType.LOT)
+      .map((scope) => scope.scopeId);
+
+    const [paddocks, lots] = await Promise.all([
+      paddockIds.length
+        ? this.db.client.farmArea.findMany({
+            where: { farmId, id: { in: paddockIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+      lotIds.length
+        ? this.db.client.cattleLot.findMany({
+            where: { farmId, id: { in: lotIds } },
+            select: { id: true, name: true },
+          })
+        : [],
+    ]);
+
+    return new Map([
+      ...paddocks.map(
+        (paddock) =>
+          [
+            scopeKey(AttentionScopeType.PADDOCK, paddock.id),
+            paddock.name,
+          ] as const,
+      ),
+      ...lots.map(
+        (lot) => [scopeKey(AttentionScopeType.LOT, lot.id), lot.name] as const,
+      ),
+    ]);
   }
 
   async project(

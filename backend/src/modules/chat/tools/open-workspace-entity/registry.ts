@@ -5,6 +5,7 @@ export const workspaceEntities = [
   'revenue',
   'cattleLot',
   'paddock',
+  'attentionItem',
 ] as const;
 
 export const openWorkspaceEntityRegistry = {
@@ -15,7 +16,7 @@ export const openWorkspaceEntityRegistry = {
       entityType: z
         .enum(workspaceEntities)
         .describe(
-          'Tipo do registro: expense (despesa), revenue (receita), cattleLot (lote) ou paddock (pasto).',
+          'Tipo do registro: expense (despesa), revenue (receita), cattleLot (lote), paddock (pasto) ou attentionItem (item de atenção, que abre com a explicação gravada).',
         ),
       entityId: z
         .string()

@@ -119,6 +119,38 @@ As cores vêm dos tokens do tema (`--color-accent`, `--color-highlight`,
 `--color-danger` e misturas), então o mesmo gráfico se lê no claro e no escuro sem
 segunda paleta.
 
+## O que está pedindo atenção
+
+Uma regra que dispara vira item em `farm_attention_item`, e é isso que o painel
+mostra: `GET /attention-items` devolve só o que está aberto (`NEW` ou `SEEN`),
+do mais grave para o menos grave. **Item que se resolveu sozinho some sem o
+produtor dispensar nada** — a projeção do ticket 09 fecha o item quando a mesma
+regra passa no mesmo escopo, e a lista nunca mostra fechado.
+
+Cada linha diz o número, não um susto: "Pasto 4 está com 180 cabeças, acima da
+lotação de 120 (limite do próprio pasto)". A frase é montada no servidor a
+partir dos fatos gravados no item mais o `configSnapshot` da avaliação que o
+projetou (`backend/src/modules/attention/attention.messages.ts`), e vem
+acompanhada do par estruturado `measured`/`threshold` para quem quiser mostrar
+os dois separados. O escopo já vem resolvido em nome — o pasto ou o lote —, e é
+por ele que a ficha do item linka de volta para o registro.
+
+Abrir um item chama `GET /attention-items/:id/explanation`, que é **determinística
+e não passa por modelo nenhum**: fatos medidos, configuração aplicada, eventos
+correlacionados, regra e versão que decidiram. O limite lido é o do snapshot
+gravado na avaliação, então mudar o limite do pasto amanhã não reescreve a
+explicação de ontem. Com a OpenAI fora do ar a explicação continua abrindo: o
+caminho inteiro é REST, e o botão **Atenção · N** no cabeçalho do painel entra
+nele sem passar pelo chat.
+
+No chat o agente tem duas tools de leitura: `getAttentionItems` para a lista e
+`explainAttentionItem` para o "por quê". As duas devolvem exatamente o que está
+gravado, e o system prompt manda responder só com isso — sem recalcular, sem
+supor causa e sem completar o que faltar. No painel a lista é
+`openWorkspaceTable` com `dataset: attentionItems` e o item é
+`openWorkspaceEntity` com `entityType: attentionItem`; gráfico de atenção não
+existe, e pedir um devolve a recusa em vez de um painel quebrado.
+
 ## Mapa e contorno de pasto
 
 O contorno do pasto é desenhado sobre imagem de satélite, em coordenada real, na
@@ -239,7 +271,8 @@ Movimentar um lote fecha e abre esses intervalos no mesmo comando que grava
 o primeiro resultado sem duplicar histórico.
 
 **A trilha de evento começa no movimento de gado.** `rule_evaluation` e
-`farm_attention_item` ainda nascem vazias — os tickets 08 e 09 escrevem nelas.
+`farm_attention_item` nascem vazias no seed e são escritas pelo processador do
+outbox quando um movimento acontece — nada de alerta plantado na fixture.
 O evento separa quando aconteceu
 (`occurredAt`, que aceita lançamento retroativo) de quando foi registrado
 (`recordedAt`), e carrega `correlationId`/`causationId` mais `actorType`
